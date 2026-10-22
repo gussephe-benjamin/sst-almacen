@@ -52,10 +52,13 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Println("datos de demostración cargados")
+		(&service.Svc{DB: pool}).EnsureAccounts(ctx, cfg.Accounts)
 		return
 	}
 
-	api := &httpapi.API{S: &service.Svc{DB: pool}, Files: files, Secret: cfg.JWTSecret}
+	svc := &service.Svc{DB: pool}
+	svc.EnsureAccounts(ctx, cfg.Accounts)
+	api := &httpapi.API{S: svc, Files: files, Secret: cfg.JWTSecret}
 	log.Printf("API en :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, api.Router()))
 }

@@ -7,7 +7,7 @@ export type Me = {
   nombre: string
   puesto_id: number
   puesto: string
-  rol: 'trabajador' | 'sst' | 'mantenimiento' | 'administracion'
+  rol: 'trabajador' | 'sst' | 'mantenimiento' | 'administracion' | 'admin'
 }
 
 export class ApiError extends Error {
@@ -28,6 +28,10 @@ export async function api<T = Row>(path: string, opts: { method?: string; body?:
     credentials: 'include',
   })
   const data = await res.json().catch(() => ({}))
+  // Sesión vencida o cuenta desactivada: la app vuelve al login conservando la página actual.
+  if ((res.status === 401 || ['inactivo', 'pendiente'].includes(data?.error?.code)) && !path.startsWith('/auth') && path !== '/me') {
+    window.dispatchEvent(new CustomEvent('sesion-expirada', { detail: data?.error?.message }))
+  }
   if (!res.ok) {
     throw new ApiError(res.status, data?.error?.code ?? 'error', data?.error?.message ?? 'Ocurrió un error inesperado.')
   }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Me, Row } from '../api/client'
-import { Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, today, useAction, useApi } from '../components/ui'
+import { Btn, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, today, useAction, useApi } from '../components/ui'
 
 const MOTIVOS = ['Desgaste por uso', 'Rotura o daño', 'Pérdida', 'Talla incorrecta', 'Otro']
 
@@ -14,6 +14,7 @@ export function SolicitarEpp() {
     const r = await act('/epp', f, 'Solicitud enviada a SST.')
     if (r) nav('/mis-solicitudes')
   }
+  const listo = f.recurso_id && f.motivo && f.descripcion.trim() && f.foto_id
   return (
     <Page title="Solicitar cambio de EPP" sub="Adjunta una foto del EPP dañado. SST revisará tu solicitud.">
       <div className="card max-w-md space-y-3">
@@ -31,7 +32,8 @@ export function SolicitarEpp() {
         </Field>
         <Field label="Describe el problema"><textarea className="inp" rows={3} value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} /></Field>
         <PhotoField label="Foto del EPP" value={f.foto_id} onChange={(id) => setF({ ...f, foto_id: id })} />
-        <button className="btn btn-primary w-full" onClick={submit}>Enviar solicitud</button>
+        <Btn className="btn btn-primary w-full" disabled={!listo} onClick={submit}>Enviar solicitud</Btn>
+        {!listo && <p className="text-center text-xs text-slate-500">Completa el EPP, el motivo, la descripción y la foto.</p>}
       </div>
     </Page>
   )
@@ -85,7 +87,7 @@ export function EppDetalle({ me }: { me: Me }) {
     if (await act(`/epp/${id}/${acc}`, v, msg)) setModal('')
   }
   return (
-    <Page title={e ? `${e.codigo} · ${e.recurso}` : 'Solicitud'} actions={e && <Chip s={e.estado} />}>
+    <Page back={sst ? '/epp' : '/mis-solicitudes'} title={e ? `${e.codigo} · ${e.recurso}` : 'Solicitud'} actions={e && <Chip s={e.estado} />}>
       <Loading q={q} />
       {e && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -105,11 +107,11 @@ export function EppDetalle({ me }: { me: Me }) {
             {sst && (
               <div className="flex flex-wrap gap-2">
                 {(e.estado === 'enviada' || e.estado === 'en_espera') && <>
-                  <button className="btn btn-primary" onClick={() => run('aprobar', 'Solicitud aprobada.')}>Aprobar</button>
-                  {e.estado === 'enviada' && <button className="btn" onClick={() => setModal('espera')}>Poner en espera</button>}
-                  <button className="btn btn-danger" onClick={() => setModal('rechazar')}>Rechazar</button>
+                  <Btn className="btn btn-primary" onClick={() => run('aprobar', 'Solicitud aprobada.')}>Aprobar</Btn>
+                  {e.estado === 'enviada' && <Btn className="btn" onClick={() => setModal('espera')}>Poner en espera</Btn>}
+                  <Btn className="btn btn-danger" onClick={() => setModal('rechazar')}>Rechazar</Btn>
                 </>}
-                {e.estado === 'aprobada' && <button className="btn btn-primary" onClick={() => setModal('entregar')}>Registrar entrega</button>}
+                {e.estado === 'aprobada' && <Btn className="btn btn-primary" onClick={() => setModal('entregar')}>Registrar entrega</Btn>}
               </div>
             )}
           </div>
@@ -117,17 +119,17 @@ export function EppDetalle({ me }: { me: Me }) {
         </div>
       )}
       {modal === 'espera' && (
-        <Modal title="Poner en espera" onClose={() => setModal('')} footer={<button className="btn btn-primary" onClick={() => run('espera', 'Solicitud en espera.')}>Guardar</button>}>
+        <Modal title="Poner en espera" onClose={() => setModal('')} footer={<Btn className="btn btn-primary" onClick={() => run('espera', 'Solicitud en espera.')}>Guardar</Btn>}>
           <Field label="Fecha estimada de cambio"><input type="date" className="inp" value={v.fecha} onChange={(x) => setV({ ...v, fecha: x.target.value })} /></Field>
         </Modal>
       )}
       {modal === 'rechazar' && (
-        <Modal title="Rechazar solicitud" onClose={() => setModal('')} footer={<button className="btn btn-danger" onClick={() => run('rechazar', 'Solicitud rechazada.')}>Rechazar</button>}>
+        <Modal title="Rechazar solicitud" onClose={() => setModal('')} footer={<Btn className="btn btn-danger" onClick={() => run('rechazar', 'Solicitud rechazada.')}>Rechazar</Btn>}>
           <Field label="Motivo"><textarea className="inp" rows={3} value={v.motivo} onChange={(x) => setV({ ...v, motivo: x.target.value })} /></Field>
         </Modal>
       )}
       {modal === 'entregar' && (
-        <Modal title="Registrar entrega" onClose={() => setModal('')} footer={<button className="btn btn-primary" onClick={() => run('entregar', 'Entrega registrada. El stock bajó en 1.')}>Confirmar entrega</button>}>
+        <Modal title="Registrar entrega" onClose={() => setModal('')} footer={<Btn className="btn btn-primary" onClick={() => run('entregar', 'Entrega registrada. El stock bajó en 1.')}>Confirmar entrega</Btn>}>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.epp_anterior_devuelto} onChange={(x) => setV({ ...v, epp_anterior_devuelto: x.target.checked })} /> El trabajador devolvió el EPP anterior</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.formato_firmado} onChange={(x) => setV({ ...v, formato_firmado: x.target.checked })} /> Firmó el formato físico de entrega</label>
         </Modal>

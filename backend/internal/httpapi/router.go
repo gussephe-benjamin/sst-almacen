@@ -118,6 +118,51 @@ func (a *API) Router() http.Handler {
 				})
 			})
 
+			// Solo admin: gestión de cuentas
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(RequireRole("admin"))
+				r.Get("/cuentas", func(w http.ResponseWriter, r *http.Request) {
+					p, err := a.S.Puestos(r.Context(), true)
+					if err != nil {
+						writeErr(w, err)
+						return
+					}
+					sp, err := a.S.Pendientes(r.Context())
+					reply(w, map[string]any{"puestos": p, "sin_puesto": sp}, err)
+				})
+				r.Post("/cuentas", func(w http.ResponseWriter, r *http.Request) {
+					var in service.CuentaIn
+					if err := decode(r, &in); err != nil {
+						writeErr(w, err)
+						return
+					}
+					id, err := a.S.CrearCuenta(r.Context(), actor(r), in)
+					reply(w, map[string]int{"id": id}, err)
+				})
+				r.Post("/puestos/{id}/asignar", func(w http.ResponseWriter, r *http.Request) {
+					var in struct {
+						UsuarioID int `json:"usuario_id"`
+					}
+					if err := decode(r, &in); err != nil {
+						writeErr(w, err)
+						return
+					}
+					ok(w, a.S.Asignar(r.Context(), actor(r), idParam(r, "id"), in.UsuarioID))
+				})
+				r.Post("/puestos/{id}/liberar", func(w http.ResponseWriter, r *http.Request) { ok(w, a.S.LiberarPuesto(r.Context(), actor(r), idParam(r, "id"))) })
+				r.Get("/puestos/{id}/historial", func(w http.ResponseWriter, r *http.Request) { v, err := a.S.PuestoHistorial(r.Context(), idParam(r, "id")); reply(w, v, err) })
+				r.Post("/usuarios/{id}/password", func(w http.ResponseWriter, r *http.Request) {
+					var in struct {
+						Password string `json:"password"`
+					}
+					if err := decode(r, &in); err != nil {
+						writeErr(w, err)
+						return
+					}
+					ok(w, a.S.ResetPassword(r.Context(), actor(r), idParam(r, "id"), in.Password))
+				})
+			})
+
 			// Solo SST
 			r.Group(func(r chi.Router) {
 				r.Use(RequireRole("sst"))
@@ -224,7 +269,7 @@ func (a *API) Router() http.Handler {
 				r.Put("/biblioteca/{id}", saveBiblio)
 				r.Delete("/biblioteca/{id}", func(w http.ResponseWriter, r *http.Request) { ok(w, a.S.BiblioEliminar(r.Context(), actor(r), idParam(r, "id"))) })
 
-				r.Get("/puestos", func(w http.ResponseWriter, r *http.Request) { v, err := a.S.Puestos(r.Context()); reply(w, v, err) })
+				r.Get("/puestos", func(w http.ResponseWriter, r *http.Request) { v, err := a.S.Puestos(r.Context(), false); reply(w, v, err) })
 				r.Get("/usuarios/pendientes", func(w http.ResponseWriter, r *http.Request) { v, err := a.S.Pendientes(r.Context()); reply(w, v, err) })
 				r.Post("/puestos/{id}/asignar", func(w http.ResponseWriter, r *http.Request) {
 					var in struct {

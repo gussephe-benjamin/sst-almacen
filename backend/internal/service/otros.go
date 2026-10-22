@@ -154,23 +154,28 @@ func (s *Svc) InternaGuardar(ctx context.Context, a *Actor, id int, in InternaIn
 
 // ---------- Puestos ----------
 
-func (s *Svc) Puestos(ctx context.Context) (json.RawMessage, error) {
-	return List(ctx, s.DB, `SELECT p.id, p.nombre, p.rol, a.nombre AS area, u.id AS usuario_id, u.nombres AS persona, u.dni, u.celular, u.correo, ap.desde,
+func (s *Svc) Puestos(ctx context.Context, incluirAdmin bool) (json.RawMessage, error) {
+	return List(ctx, s.DB, `SELECT p.id, p.nombre, p.rol, a.id AS area_id, a.nombre AS area, u.id AS usuario_id, u.nombres AS persona, u.dni, u.celular, u.correo, ap.desde,
 		(SELECT count(*) FROM asignaciones_puesto x WHERE x.puesto_id = p.id AND x.hasta IS NOT NULL) AS anteriores
 		FROM puestos p JOIN areas a ON a.id = p.area_id
-		LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id ORDER BY p.id`)
+		LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id
+		WHERE $1 OR p.rol <> 'admin' ORDER BY p.rol, p.id`, incluirAdmin)
 }
 
 func (s *Svc) Pendientes(ctx context.Context) (json.RawMessage, error) {
-	return List(ctx, s.DB, `SELECT u.id, u.dni, u.nombres, u.correo, u.celular, a.nombre AS area, a.tipo, u.created_at
-		FROM usuarios u LEFT JOIN areas a ON a.id = u.area_id WHERE u.estado = 'pendiente' ORDER BY u.created_at`)
+	return List(ctx, s.DB, `SELECT u.id, u.dni, u.nombres, u.correo, u.celular, u.estado, a.nombre AS area, a.tipo, u.created_at
+		FROM usuarios u LEFT JOIN areas a ON a.id = u.area_id WHERE u.estado IN ('pendiente','inactivo')
+		ORDER BY u.estado = 'inactivo', u.created_at DESC`)
 }
 
 func (s *Svc) Asignar(ctx context.Context, a *Actor, puestoID, usuarioID int) error {
 	return s.Tx(ctx, func(tx pgx.Tx) error {
-		var puesto string
-		if err := tx.QueryRow(ctx, `SELECT nombre FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto); err != nil {
+		var puesto, rol string
+		if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
 			return notFound(err)
+		}
+		if !rolesGestionables[rol] {
+			return Err(403, "sin_permiso", "Las cuentas de administrador se gestionan desde el archivo .env.")
 		}
 		var nombre, estado string
 		if err := tx.QueryRow(ctx, `SELECT nombres, estado FROM usuarios WHERE id=$1 FOR UPDATE`, usuarioID).Scan(&nombre, &estado); err != nil {
@@ -181,12 +186,8 @@ func (s *Svc) Asignar(ctx context.Context, a *Actor, puestoID, usuarioID int) er
 		if ocupa {
 			return Conflict("ya_asignado", "Esa persona ya ocupa otro puesto.")
 		}
-		var anterior *int
-		tx.QueryRow(ctx, `UPDATE asignaciones_puesto SET hasta=now() WHERE puesto_id=$1 AND hasta IS NULL RETURNING usuario_id`, puestoID).Scan(&anterior)
-		if anterior != nil {
-			if _, err := tx.Exec(ctx, `UPDATE usuarios SET estado='inactivo' WHERE id=$1`, *anterior); err != nil {
-				return err
-			}
+		if err := liberar(ctx, tx, puestoID); err != nil {
+			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO asignaciones_puesto (puesto_id, usuario_id, asignado_por) VALUES ($1,$2,$3)`, puestoID, usuarioID, a.UserID); err != nil {
 			return err
@@ -205,7 +206,7 @@ func (s *Svc) PuestoHistorial(ctx context.Context, id int) (map[string]json.RawM
 		return nil, err
 	}
 	acc, err := List(ctx, s.DB, `SELECT h.created_at AS fecha, h.accion, h.entidad, h.entidad_id, u.nombres AS quien
-		FROM historial h JOIN usuarios u ON u.id = h.usuario_id WHERE h.puesto_id=$1 ORDER BY h.created_at DESC LIMIT 100`, id)
+		FROM historial h JOIN usuarios u ON u.id = h.usuario_id WHERE h.puesto_id=$1 OR (h.entidad = 'puesto' AND h.entidad_id = $1) ORDER BY h.created_at DESC LIMIT 100`, id)
 	return map[string]json.RawMessage{"asignaciones": asig, "acciones": acc}, err
 }
 

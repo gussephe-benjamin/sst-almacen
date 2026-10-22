@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2, Circle, RotateCcw } from 'lucide-react'
 import type { Me, Row } from '../api/client'
-import { Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, today, useAction, useApi } from '../components/ui'
+import { Btn, confirmar, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, today, useAction, useApi } from '../components/ui'
 
 const GRUPOS: Record<string, string[]> = {
   por_hacer: ['asignada', 'modificacion', 'devuelta'],
@@ -86,7 +86,7 @@ export function TareaDetalle({ me }: { me: Me }) {
   const run = async (path: string, body: unknown, msg: string) => { if (await act(`/tareas/${id}${path}`, body, msg)) setModal('') }
 
   return (
-    <Page title={t ? `${t.codigo} · ${t.titulo}` : 'Tarea'} actions={t && <Chip s={t.estado} />}>
+    <Page back="/tareas" title={t ? `${t.codigo} · ${t.titulo}` : 'Tarea'} actions={t && <Chip s={t.estado} />}>
       <Loading q={q} />
       {t && (
         <div className="grid gap-4 lg:grid-cols-3">
@@ -104,17 +104,17 @@ export function TareaDetalle({ me }: { me: Me }) {
               </dl>
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                 {resp && t.estado === 'asignada' && <>
-                  <button className="btn btn-primary" onClick={() => run('/aceptar', {}, 'Tarea aceptada.')}>Aceptar tarea</button>
-                  <button className="btn" onClick={() => setModal('mod')}>Pedir modificación</button>
+                  <Btn className="btn btn-primary" onClick={() => run('/aceptar', {}, 'Tarea aceptada.')}>Aceptar tarea</Btn>
+                  <Btn className="btn" onClick={() => setModal('mod')}>Pedir modificación</Btn>
                 </>}
-                {editable && <button className="btn btn-primary" onClick={() => run('/terminar', {}, 'Tarea enviada a SST para validación.')}>Terminar y enviar a SST</button>}
+                {editable && <Btn className="btn btn-primary" onClick={() => confirmar('¿Enviar la tarea a SST para validación?') ? run('/terminar', {}, 'Tarea enviada a SST para validación.') : undefined}>Terminar y enviar a SST</Btn>}
                 {sst && t.estado === 'modificacion' && <>
-                  <button className="btn btn-primary" onClick={() => run('/modificacion/aprobar', {}, 'Modificación aprobada.')}>Aprobar modificación</button>
-                  <button className="btn btn-danger" onClick={() => setModal('rechazarMod')}>Rechazar</button>
+                  <Btn className="btn btn-primary" onClick={() => run('/modificacion/aprobar', {}, 'Modificación aprobada.')}>Aprobar modificación</Btn>
+                  <Btn className="btn btn-danger" onClick={() => setModal('rechazarMod')}>Rechazar</Btn>
                 </>}
                 {sst && t.estado === 'por_validar' && <>
-                  <button className="btn btn-primary" onClick={() => run('/cerrar', {}, 'Tarea validada y cerrada.')}>Validar y cerrar</button>
-                  <button className="btn btn-danger" onClick={() => { setV({ ...v, comentario: '', pasos: [] }); setModal('devolver') }}>Devolver</button>
+                  <Btn className="btn btn-primary" onClick={() => confirmar('¿Validar y cerrar la tarea? Esta acción no se puede deshacer.') ? run('/cerrar', {}, 'Tarea validada y cerrada.') : undefined}>Validar y cerrar</Btn>
+                  <Btn className="btn btn-danger" onClick={() => { setV({ ...v, comentario: '', pasos: [] }); setModal('devolver') }}>Devolver</Btn>
                 </>}
               </div>
             </div>
@@ -127,8 +127,8 @@ export function TareaDetalle({ me }: { me: Me }) {
                       {p.completado ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Circle size={18} className="text-slate-400" />}
                       <span className="flex-1 font-medium">{p.orden}. {p.titulo}</span>
                       {p.rehacer && !p.completado && <Chip s="devuelta">Rehacer</Chip>}
-                      {editable && !p.completado && <button className="btn btn-sm btn-primary" onClick={() => { setV({ ...v, comentario: '', evidencia_id: '' }); setModal(p.orden) }}>Completar</button>}
-                      {editable && p.completado && <button className="btn btn-sm" onClick={() => run(`/pasos/${p.orden}/reabrir`, {}, 'Paso reabierto.')}><RotateCcw size={12} /> Reabrir</button>}
+                      {editable && !p.completado && <Btn className="btn btn-sm btn-primary" onClick={() => { setV({ ...v, comentario: '', evidencia_id: '' }); setModal(p.orden) }}>Completar</Btn>}
+                      {editable && p.completado && <Btn className="btn btn-sm" onClick={() => run(`/pasos/${p.orden}/reabrir`, {}, 'Paso reabierto.')}><RotateCcw size={12} /> Reabrir</Btn>}
                     </div>
                     {p.evidencia_id && (
                       <div className="mt-2 flex gap-3">
@@ -146,7 +146,7 @@ export function TareaDetalle({ me }: { me: Me }) {
       )}
 
       {modal === 'mod' && (
-        <Modal title="Pedir modificación" onClose={() => setModal('')} footer={<button className="btn btn-primary" onClick={() => run('/modificacion', v, 'Solicitud enviada a SST.')}>Enviar</button>}>
+        <Modal title="Pedir modificación" onClose={() => setModal('')} footer={<Btn className="btn btn-primary" onClick={() => run('/modificacion', v, 'Solicitud enviada a SST.')}>Enviar</Btn>}>
           <Field label="Tipo">
             <select className="inp" value={v.tipo} onChange={(e) => setV({ ...v, tipo: e.target.value })}><option value="plazo">Cambio de plazo</option><option value="alcance">Cambio de alcance</option></select>
           </Field>
@@ -155,12 +155,12 @@ export function TareaDetalle({ me }: { me: Me }) {
         </Modal>
       )}
       {modal === 'rechazarMod' && (
-        <Modal title="Rechazar modificación" onClose={() => setModal('')} footer={<button className="btn btn-danger" onClick={() => run('/modificacion/rechazar', { respuesta: v.respuesta }, 'Modificación rechazada.')}>Rechazar</button>}>
+        <Modal title="Rechazar modificación" onClose={() => setModal('')} footer={<Btn className="btn btn-danger" onClick={() => run('/modificacion/rechazar', { respuesta: v.respuesta }, 'Modificación rechazada.')}>Rechazar</Btn>}>
           <Field label="Respuesta para el responsable"><textarea className="inp" rows={3} value={v.respuesta} onChange={(e) => setV({ ...v, respuesta: e.target.value })} /></Field>
         </Modal>
       )}
       {modal === 'devolver' && t && (
-        <Modal title="Devolver tarea" onClose={() => setModal('')} footer={<button className="btn btn-danger" onClick={() => run('/devolver', { comentario: v.comentario, pasos: v.pasos }, 'Tarea devuelta.')}>Devolver</button>}>
+        <Modal title="Devolver tarea" onClose={() => setModal('')} footer={<Btn className="btn btn-danger" onClick={() => run('/devolver', { comentario: v.comentario, pasos: v.pasos }, 'Tarea devuelta.')}>Devolver</Btn>}>
           <Field label="Comentario"><textarea className="inp" rows={3} value={v.comentario} onChange={(e) => setV({ ...v, comentario: e.target.value })} /></Field>
           <span className="lbl">Pasos a rehacer</span>
           {(t.pasos ?? []).map((p: Row) => (
@@ -173,7 +173,7 @@ export function TareaDetalle({ me }: { me: Me }) {
       )}
       {typeof modal === 'number' && (
         <Modal title={`Completar paso ${modal}`} onClose={() => setModal('')}
-          footer={<button className="btn btn-primary" onClick={() => run(`/pasos/${modal}/completar`, { evidencia_id: v.evidencia_id, comentario: v.comentario }, 'Paso completado.')}>Guardar</button>}>
+          footer={<Btn className="btn btn-primary" onClick={() => run(`/pasos/${modal}/completar`, { evidencia_id: v.evidencia_id, comentario: v.comentario }, 'Paso completado.')}>Guardar</Btn>}>
           <PhotoField label="Foto de evidencia" value={v.evidencia_id} onChange={(x) => setV({ ...v, evidencia_id: x })} />
           <Field label="Comentario"><textarea className="inp" rows={3} value={v.comentario} onChange={(e) => setV({ ...v, comentario: e.target.value })} /></Field>
         </Modal>

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, type Me, type Row } from '../api/client'
-import { Banner, Field, Modal, toast, useApi } from '../components/ui'
+import { Btn, Banner, Field, Modal, toast, useApi } from '../components/ui'
 
 const DEMO: [string, string, string][] = [
   ['Trabajador', 'Luis Quispe', '71234567'],
@@ -16,6 +16,7 @@ export function Login() {
   const [pw, setPw] = useState('')
   const [err, setErr] = useState('')
   const [reg, setReg] = useState(false)
+  useEffect(() => { document.title = 'Ingresar · SST Almacén' }, [])
 
   const login = async (d = dni, p = pw) => {
     setErr('')
@@ -35,19 +36,19 @@ export function Login() {
         <p className="muted mb-4">Ingresa con tu DNI.</p>
         <div className="mb-4 grid grid-cols-2 gap-2">
           {DEMO.map(([rol, nom, d]) => (
-            <button key={d} className="btn flex-col items-start text-left" onClick={() => { setDni(d); setPw('demo1234'); login(d, 'demo1234') }}>
+            <Btn key={d} className="btn flex-col items-start text-left" onClick={() => { setDni(d); setPw('demo1234'); login(d, 'demo1234') }}>
               <span className="text-xs text-slate-500">{rol}</span>
               <span>{nom}</span>
-            </button>
+            </Btn>
           ))}
         </div>
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); login() }}>
           <Field label="DNI"><input className="inp" inputMode="numeric" maxLength={8} value={dni} onChange={(e) => setDni(e.target.value)} placeholder="8 dígitos" /></Field>
           <Field label="Contraseña"><input className="inp" type="password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
           {err && <Banner kind="err">{err}</Banner>}
-          <button className="btn btn-primary w-full">Ingresar</button>
+          <Btn className="btn btn-primary w-full">Ingresar</Btn>
         </form>
-        <p className="muted mt-4 text-center">¿Primera vez? <button className="text-blue-700 underline" onClick={() => setReg(true)}>Regístrate con tu DNI</button></p>
+        <p className="muted mt-4 text-center">¿Primera vez? <Btn className="text-blue-700 underline" onClick={() => setReg(true)}>Regístrate con tu DNI</Btn></p>
         <p className="mt-2 text-center text-xs text-slate-400">Usuarios de prueba: contraseña demo1234</p>
       </div>
       {reg && <Registro onClose={() => setReg(false)} />}
@@ -72,7 +73,7 @@ function Registro({ onClose }: { onClose: () => void }) {
     }
   }
   return (
-    <Modal title="Registro con DNI" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" onClick={submit}>Registrarme</button></>}>
+    <Modal title="Registro con DNI" onClose={onClose} footer={<><Btn className="btn" onClick={onClose}>Cancelar</Btn><Btn className="btn btn-primary" onClick={submit}>Registrarme</Btn></>}>
       <p className="muted">Todo el personal, operativo y administrativo, se registra con su DNI. SST te asignará al puesto que ocupas.</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="DNI"><input className="inp" maxLength={8} inputMode="numeric" value={f.dni} onChange={(e) => set('dni', e.target.value)} /></Field>

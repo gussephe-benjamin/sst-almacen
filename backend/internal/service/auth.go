@@ -47,7 +47,11 @@ func (s *Svc) Register(ctx context.Context, in RegisterIn) error {
 			in.DNI, strings.TrimSpace(in.Nombres), in.Correo, in.Celular, string(hash), area); err != nil {
 			return err
 		}
-		return Notify(ctx, tx, "sst", 0, in.Nombres+" se registró con DNI y espera asignación de puesto.", "puestos", 0)
+		msg := in.Nombres + " se registró con DNI y espera asignación de puesto."
+		if err := Notify(ctx, tx, "sst", 0, msg, "puestos", 0); err != nil {
+			return err
+		}
+		return Notify(ctx, tx, "admin", 0, msg, "cuentas", 0)
 	})
 }
 
@@ -72,7 +76,7 @@ func (s *Svc) Login(ctx context.Context, dni, password string) (int, error) {
 		return 0, Err(http.StatusForbidden, "pendiente", "Tu registro está pendiente: SST aún no te asigna un puesto.")
 	}
 	if estado == "inactivo" {
-		return 0, Err(http.StatusForbidden, "inactivo", "Ya no ocupas un puesto. Si es un error, comunícate con SST.")
+		return 0, Err(http.StatusForbidden, "inactivo", "Ya no ocupas un puesto. Si es un error, comunícate con el administrador.")
 	}
 	if _, err := s.LoadActor(ctx, id); err != nil {
 		return 0, err

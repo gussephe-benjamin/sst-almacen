@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bell, BookOpen, Box, ClipboardList, HardHat, LayoutDashboard, ListChecks, LogOut, Menu, Search, Users } from 'lucide-react'
+import { Bell, BookOpen, Box, ClipboardList, HardHat, LayoutDashboard, ListChecks, LogOut, Menu, Search, UserCog, Users } from 'lucide-react'
 import { api, type Me, type Row } from '../api/client'
 import { Toast, useApi } from '../components/ui'
 
@@ -9,10 +9,12 @@ type Item = [string, string, typeof Bell, number?]
 
 export function Layout({ me }: { me: Me }) {
   const qc = useQueryClient()
+  const nav = useNavigate()
   const [open, setOpen] = useState(false)
-  const notifs = useApi('/notificaciones')
+  const notifs = useApi('/notificaciones', 30_000)
   const unread = (notifs.data ?? []).filter((n: Row) => !n.leida).length
-  const dash = useApi<Row>(me.rol === 'sst' ? '/dashboard' : null)
+  const dash = useApi<Row>(me.rol === 'sst' ? '/dashboard' : null, 60_000)
+  const cuentas = useApi<Row>(me.rol === 'admin' ? '/admin/cuentas' : null)
   const d = dash.data
 
   const menus: Record<Me['rol'], Item[]> = {
@@ -25,14 +27,16 @@ export function Layout({ me }: { me: Me }) {
     ],
     mantenimiento: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
     administracion: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
+    admin: [['/cuentas', 'Cuentas y puestos', UserCog, (cuentas.data?.sin_puesto ?? []).filter((u: Row) => u.estado === 'pendiente').length]],
   }
   const items: Item[] = [...menus[me.rol], ['/notificaciones', 'Notificaciones', Bell, unread]]
-  const rolLabel = { trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración' }[me.rol]
+  const rolLabel = { trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración', admin: 'Administrador' }[me.rol]
 
   const logout = async () => {
-    await api('/auth/logout', { body: {} })
-    qc.clear()
+    await api('/auth/logout', { body: {} }).catch(() => {})
+    nav('/', { replace: true })
     qc.setQueryData(['/me'], null)
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== '/me' })
   }
 
   return (
@@ -57,7 +61,7 @@ export function Layout({ me }: { me: Me }) {
               {!!n && <span className="rounded-full bg-amber-500 px-1.5 text-xs text-white">{n}</span>}
             </NavLink>
           ))}
-          <button onClick={logout} className="mt-2 flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-slate-800"><LogOut size={16} /> Salir</button>
+          <button onClick={logout} className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm hover:bg-slate-800"><LogOut size={16} /> Salir</button>
         </nav>
       </aside>
       <main className="flex-1"><Outlet /></main>

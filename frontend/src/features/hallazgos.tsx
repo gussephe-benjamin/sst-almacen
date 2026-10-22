@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import type { Row } from '../api/client'
-import { Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, fmtD, today, useAction, useApi } from '../components/ui'
+import { Btn, confirmar, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, fmtD, today, useAction, useApi } from '../components/ui'
 
 export function Hallazgos() {
   const cat = useApi<Row>('/catalogos')
@@ -19,10 +19,11 @@ export function Hallazgos() {
       actions={<>
         <a className="btn" href={`/api/hallazgos/export.xlsx?${qs}`}><Download size={14} /> Excel</a>
         <a className="btn" href={`/api/hallazgos/export.pdf?${qs}`}><Download size={14} /> PDF</a>
-        <button className="btn btn-primary" onClick={() => setNuevo(true)}><Plus size={14} /> Registrar hallazgo</button>
+        <Btn className="btn btn-primary" onClick={() => setNuevo(true)}><Plus size={14} /> Registrar hallazgo</Btn>
       </>}>
+      {qs && <div className="mb-2 text-right"><Btn className="btn btn-sm" onClick={() => setSp(new URLSearchParams())}>Limpiar filtros</Btn></div>}
       <div className="card mb-3 grid gap-2 sm:grid-cols-5">
-        <input className="inp" placeholder="Buscar…" defaultValue={sp.get('q') ?? ''} onKeyDown={(e) => e.key === 'Enter' && set('q', (e.target as HTMLInputElement).value)} />
+        <input key={sp.get('q') ?? ''} className="inp" placeholder="Buscar y presionar Enter" defaultValue={sp.get('q') ?? ''} onBlur={(e) => e.target.value !== (sp.get('q') ?? '') && set('q', e.target.value)} onKeyDown={(e) => e.key === 'Enter' && set('q', (e.target as HTMLInputElement).value)} />
         <select className="inp" value={sp.get('estado') ?? ''} onChange={(e) => set('estado', e.target.value)}>
           <option value="">Todos los estados</option>
           <option value="registrado">Registrado</option><option value="en_atencion">En atención</option>
@@ -79,7 +80,7 @@ function NuevoHallazgo({ cat, onClose }: { cat?: Row; onClose: () => void }) {
     </select>
   )
   return (
-    <Modal title="Registrar hallazgo" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" onClick={save}>Registrar</button></>}>
+    <Modal title="Registrar hallazgo" onClose={onClose} footer={<><Btn className="btn" onClick={onClose}>Cancelar</Btn><Btn className="btn btn-primary" onClick={save}>Registrar</Btn></>}>
       <Field label="Descripción breve"><input className="inp" value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} /></Field>
       <Field label="Detalle"><textarea className="inp" rows={3} value={f.detalle} onChange={(e) => setF({ ...f, detalle: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-3">
@@ -108,7 +109,7 @@ export function HallazgoDetalle() {
   const abierto = h && (h.estado === 'registrado' || h.estado === 'en_atencion')
   const directo = h && (h.area_responsable === 'SST' || h.area_responsable === 'Calidad')
   return (
-    <Page title={h ? `${h.codigo} · ${h.descripcion}` : 'Hallazgo'} actions={h && <><Chip s={h.nivel_riesgo} /><Chip s={h.estado} /></>}>
+    <Page back="/hallazgos" title={h ? `${h.codigo} · ${h.descripcion}` : 'Hallazgo'} actions={h && <><Chip s={h.nivel_riesgo} /><Chip s={h.estado} /></>}>
       <Loading q={q} />
       {h && (
         <div className="grid gap-4 lg:grid-cols-3">
@@ -127,9 +128,9 @@ export function HallazgoDetalle() {
               <div className="flex flex-wrap gap-2">{(h.fotos ?? []).map((f: Row) => <Img key={f.id} id={f.id} className="h-32 w-44" />)}</div>
               {abierto && (
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                  {!directo && <button className="btn btn-primary" onClick={() => setModal('tarea')}><Plus size={14} /> Crear tarea</button>}
-                  {(directo ? h.tareas === 0 : h.tareas > 0) && <button className="btn btn-primary" onClick={() => act(`/hallazgos/${id}/cerrar`, {}, 'Hallazgo cerrado.')}>Cerrar hallazgo</button>}
-                  <button className="btn btn-danger" onClick={() => setModal('descartar')}>Descartar</button>
+                  {!directo && <Btn className="btn btn-primary" onClick={() => setModal('tarea')}><Plus size={14} /> Crear tarea</Btn>}
+                  {(directo ? h.tareas === 0 : h.tareas > 0) && <Btn className="btn btn-primary" onClick={() => confirmar('¿Cerrar el hallazgo? Esta acción no se puede deshacer.') ? act(`/hallazgos/${id}/cerrar`, {}, 'Hallazgo cerrado.') : undefined}>Cerrar hallazgo</Btn>}
+                  <Btn className="btn btn-danger" onClick={() => setModal('descartar')}>Descartar</Btn>
                 </div>
               )}
               {abierto && !directo && h.tareas > h.tareas_cerradas && <p className="muted">El hallazgo se podrá cerrar cuando todas sus tareas estén cerradas.</p>}
@@ -151,7 +152,7 @@ export function HallazgoDetalle() {
       {modal === 'tarea' && h && <NuevaTarea h={h} onClose={() => setModal('')} />}
       {modal === 'descartar' && (
         <Modal title="Descartar hallazgo" onClose={() => setModal('')}
-          footer={<button className="btn btn-danger" onClick={async () => { if (await act(`/hallazgos/${id}/descartar`, { motivo }, 'Hallazgo descartado.')) setModal('') }}>Descartar</button>}>
+          footer={<Btn className="btn btn-danger" onClick={async () => { if (await act(`/hallazgos/${id}/descartar`, { motivo }, 'Hallazgo descartado.')) setModal('') }}>Descartar</Btn>}>
           <Field label="Motivo"><textarea className="inp" rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} /></Field>
         </Modal>
       )}
@@ -168,7 +169,7 @@ function NuevaTarea({ h, onClose }: { h: Row; onClose: () => void }) {
   const puesto = f.puesto_id || puestos[0]?.id || 0
   const save = async () => { if (await act(`/hallazgos/${h.id}/tareas`, { ...f, puesto_id: puesto }, 'Tarea creada y asignada.')) onClose() }
   return (
-    <Modal title={`Nueva tarea para ${h.area_responsable}`} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" onClick={save}>Crear tarea</button></>}>
+    <Modal title={`Nueva tarea para ${h.area_responsable}`} onClose={onClose} footer={<><Btn className="btn" onClick={onClose}>Cancelar</Btn><Btn className="btn btn-primary" onClick={save}>Crear tarea</Btn></>}>
       <Field label="Título"><input className="inp" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} /></Field>
       <Field label="Indicaciones"><textarea className="inp" rows={3} value={f.indicaciones} onChange={(e) => setF({ ...f, indicaciones: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-3">
@@ -184,10 +185,10 @@ function NuevaTarea({ h, onClose }: { h: Row; onClose: () => void }) {
         {f.pasos.map((p, i) => (
           <div key={i} className="mb-2 flex gap-2">
             <input className="inp" placeholder={`Paso ${i + 1}`} value={p} onChange={(e) => setF({ ...f, pasos: f.pasos.map((x, j) => (j === i ? e.target.value : x)) })} />
-            {f.pasos.length > 1 && <button className="btn" onClick={() => setF({ ...f, pasos: f.pasos.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>}
+            {f.pasos.length > 1 && <Btn className="btn" onClick={() => setF({ ...f, pasos: f.pasos.filter((_, j) => j !== i) })}><Trash2 size={14} /></Btn>}
           </div>
         ))}
-        <button className="btn btn-sm" onClick={() => setF({ ...f, pasos: [...f.pasos, ''] })}><Plus size={12} /> Agregar paso</button>
+        <Btn className="btn btn-sm" onClick={() => setF({ ...f, pasos: [...f.pasos, ''] })}><Plus size={12} /> Agregar paso</Btn>
       </div>
     </Modal>
   )

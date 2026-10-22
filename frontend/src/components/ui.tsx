@@ -1,12 +1,33 @@
-import { useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, X } from 'lucide-react'
+import { ArrowLeft, Camera, X } from 'lucide-react'
 import { api, fileUrl, upload, type Row } from '../api/client'
 
 // ---------- Datos ----------
 
-export function useApi<T = Row[]>(path: string | null) {
-  return useQuery<T>({ queryKey: [path], queryFn: () => api<T>(path!), enabled: !!path })
+export function useApi<T = Row[]>(path: string | null, refetchMs?: number) {
+  return useQuery<T>({ queryKey: [path], queryFn: () => api<T>(path!), enabled: !!path, refetchInterval: refetchMs })
+}
+
+/** Pide confirmación antes de una acción que no se puede deshacer. */
+export const confirmar = (msg: string) => window.confirm(msg)
+
+/** Botón que se deshabilita mientras su acción está en curso (evita dobles envíos). */
+export function Btn({ onClick, disabled, children, ...p }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button {...p} disabled={disabled || busy} aria-busy={busy}
+      onClick={async (e) => {
+        const r = onClick?.(e) as unknown
+        if (r instanceof Promise) {
+          setBusy(true)
+          try { await r } finally { setBusy(false) }
+        }
+      }}>
+      {children}{busy && '…'}
+    </button>
+  )
 }
 
 /** Ejecuta una acción POST/PUT/DELETE, refresca los datos y muestra el resultado. */
@@ -88,9 +109,11 @@ export function Chip({ s, children }: { s?: string; children?: ReactNode }) {
 
 // ---------- Layout ----------
 
-export function Page({ title, sub, actions, children }: { title: string; sub?: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function Page({ title, sub, actions, back, children }: { title: string; sub?: ReactNode; actions?: ReactNode; back?: string; children: ReactNode }) {
+  useEffect(() => { document.title = `${title} · SST Almacén` }, [title])
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6">
+      {back && <Link to={back} className="mb-2 inline-flex items-center gap-1 text-sm text-blue-700 hover:underline"><ArrowLeft size={14} /> Volver</Link>}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="h1">{title}</h1>
@@ -117,12 +140,17 @@ export function Tabs({ tabs, value, onChange }: { tabs: [string, string][]; valu
 }
 
 export function Modal({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div className="max-h-[92vh] w-full max-w-lg overflow-auto rounded-t-xl bg-white p-5 sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
-          <button onClick={onClose} className="text-slate-400"><X size={18} /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="Cerrar"><X size={18} /></button>
         </div>
         <div className="space-y-3">{children}</div>
         {footer && <div className="mt-4 flex justify-end gap-2">{footer}</div>}

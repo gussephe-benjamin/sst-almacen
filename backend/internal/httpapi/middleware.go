@@ -64,11 +64,13 @@ func idParam(r *http.Request, name string) int {
 
 const cookieName = "sst_session"
 
+const sessionTTL = 7 * 24 * time.Hour
+
 func (a *API) issue(w http.ResponseWriter, userID int) {
 	tok, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": userID, "exp": time.Now().Add(12 * time.Hour).Unix(),
+		"sub": userID, "exp": time.Now().Add(sessionTTL).Unix(),
 	}).SignedString([]byte(a.Secret))
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 12 * 3600})
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds())})
 }
 
 func (a *API) auth(next http.Handler) http.Handler {

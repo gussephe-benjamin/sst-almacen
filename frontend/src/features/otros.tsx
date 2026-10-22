@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Me, Row } from '../api/client'
-import { Banner, Chip, Field, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
+import { Btn, Banner, Chip, Field, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
 
 // ---------- Dashboard ----------
 
@@ -92,7 +92,7 @@ export function Biblioteca({ me }: { me: Me }) {
   const sst = me.rol === 'sst'
   return (
     <Page title="Biblioteca" sub="Afiches, procedimientos e instructivos de seguridad."
-      actions={sst && <button className="btn btn-primary" onClick={() => setEdit({ tipo: 'afiche', codigo: '', titulo: '', resumen: '', cuerpo: '', imagen_id: '' })}>Publicar</button>}>
+      actions={sst && <Btn className="btn btn-primary" onClick={() => setEdit({ tipo: 'afiche', codigo: '', titulo: '', resumen: '', cuerpo: '', imagen_id: '' })}>Publicar</Btn>}>
       <Tabs value={tab} onChange={setTab} tabs={[['', 'Todo'], ...(TIPOS as [string, string][])]} />
       <Loading q={q} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -107,8 +107,8 @@ export function Biblioteca({ me }: { me: Me }) {
       {ver && (
         <Modal title={ver.titulo} onClose={() => setVer(null)}
           footer={sst && <>
-            <button className="btn btn-danger" onClick={async () => { if (confirm('¿Eliminar este contenido?') && await act(`/biblioteca/${ver.id}`, undefined, 'Contenido eliminado.', 'DELETE')) setVer(null) }}>Eliminar</button>
-            <button className="btn" onClick={() => { setEdit({ ...ver, imagen_id: ver.imagen_id ?? '' }); setVer(null) }}>Editar</button>
+            <Btn className="btn btn-danger" onClick={async () => { if (confirm('¿Eliminar este contenido?') && await act(`/biblioteca/${ver.id}`, undefined, 'Contenido eliminado.', 'DELETE')) setVer(null) }}>Eliminar</Btn>
+            <Btn className="btn" onClick={() => { setEdit({ ...ver, imagen_id: ver.imagen_id ?? '' }); setVer(null) }}>Editar</Btn>
           </>}>
           <div className="text-xs uppercase text-slate-500">{ver.tipo}{ver.codigo && ` · ${ver.codigo}`} · {fmtD(ver.created_at)}</div>
           <Img id={ver.imagen_id} className="w-full" />
@@ -118,9 +118,9 @@ export function Biblioteca({ me }: { me: Me }) {
       )}
       {edit && (
         <Modal title={edit.id ? 'Editar contenido' : 'Publicar contenido'} onClose={() => setEdit(null)}
-          footer={<button className="btn btn-primary" onClick={async () => {
+          footer={<Btn className="btn btn-primary" onClick={async () => {
             if (await act(edit.id ? `/biblioteca/${edit.id}` : '/biblioteca', edit, edit.id ? 'Contenido actualizado.' : 'Contenido publicado.', edit.id ? 'PUT' : 'POST')) setEdit(null)
-          }}>Guardar</button>}>
+          }}>Guardar</Btn>}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tipo"><select className="inp" value={edit.tipo} onChange={(e) => setEdit({ ...edit, tipo: e.target.value })}>{TIPOS.map(([v, l]) => <option key={v} value={v}>{l.slice(0, -1)}</option>)}</select></Field>
             <Field label="Código (opcional)"><input className="inp" value={edit.codigo ?? ''} onChange={(e) => setEdit({ ...edit, codigo: e.target.value })} /></Field>
@@ -144,7 +144,7 @@ export function Internas() {
   const [f, setF] = useState({ titulo: '', responsable: '', fecha: today(7) })
   const cols: [string, string, string][] = [['pendiente', 'Pendientes', 'en_curso'], ['en_curso', 'En curso', 'completada'], ['completada', 'Completadas', 'pendiente']]
   return (
-    <Page title="Tareas internas de SST" actions={<button className="btn btn-primary" onClick={() => setNueva(true)}>Nueva tarea</button>}>
+    <Page title="Tareas internas de SST" actions={<Btn className="btn btn-primary" onClick={() => setNueva(true)}>Nueva tarea</Btn>}>
       <Loading q={q} />
       <div className="grid gap-4 md:grid-cols-3">
         {cols.map(([est, l, next]) => (
@@ -155,9 +155,9 @@ export function Internas() {
                 <div key={t.id} className="card">
                   <div className="font-medium">{t.titulo}</div>
                   <div className="text-xs text-slate-500">{t.responsable} · {fmtD(t.fecha)}</div>
-                  <button className="btn btn-sm mt-2" onClick={() => act(`/tareas-internas/${t.id}`, { estado: next }, undefined, 'PATCH')}>
+                  <Btn className="btn btn-sm mt-2" onClick={() => act(`/tareas-internas/${t.id}`, { estado: next }, undefined, 'PATCH')}>
                     {est === 'completada' ? 'Reabrir' : `Mover a ${label(next).toLowerCase()}`}
-                  </button>
+                  </Btn>
                 </div>
               ))}
             </div>
@@ -166,7 +166,7 @@ export function Internas() {
       </div>
       {nueva && (
         <Modal title="Nueva tarea interna" onClose={() => setNueva(false)}
-          footer={<button className="btn btn-primary" onClick={async () => { if (await act('/tareas-internas', f, 'Tarea creada.')) setNueva(false) }}>Crear</button>}>
+          footer={<Btn className="btn btn-primary" onClick={async () => { if (await act('/tareas-internas', f, 'Tarea creada.')) setNueva(false) }}>Crear</Btn>}>
           <Field label="Título"><input className="inp" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} /></Field>
           <Field label="Responsable"><input className="inp" placeholder="Por defecto, tú" value={f.responsable} onChange={(e) => setF({ ...f, responsable: e.target.value })} /></Field>
           <Field label="Fecha"><input type="date" className="inp" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></Field>
@@ -199,7 +199,7 @@ export function Puestos() {
                 <td className="text-xs">{p.correo}<div className="text-slate-500">{p.celular}</div></td>
                 <td className="text-xs">{p.area ?? '—'}</td>
                 <td className="text-xs text-slate-500">Registrado {fmtDT(p.created_at)}</td>
-                <td className="text-right"><button className="btn btn-sm btn-primary" onClick={() => setAsig({ puesto_id: 0, usuario_id: p.id })}>Asignar a un puesto</button></td>
+                <td className="text-right"><Btn className="btn btn-sm btn-primary" onClick={() => setAsig({ puesto_id: 0, usuario_id: p.id })}>Asignar a un puesto</Btn></td>
               </tr>
             ))}
           </tbody></table>
@@ -217,8 +217,8 @@ export function Puestos() {
                 <td>{p.persona ?? <span className="text-slate-400">Vacante</span>}{p.dni && <div className="text-xs text-slate-500">DNI {p.dni}</div>}</td>
                 <td className="text-xs">{p.celular}</td><td className="text-xs">{fmtD(p.desde)}</td>
                 <td className="whitespace-nowrap text-right">
-                  <button className="btn btn-sm" onClick={() => setAsig({ puesto_id: p.id, usuario_id: pendientes[0]?.id ?? 0 })}>Cambiar personal</button>{' '}
-                  <button className="btn btn-sm" onClick={() => setHist(p)}>Historial ({p.anteriores})</button>
+                  <Btn className="btn btn-sm" onClick={() => setAsig({ puesto_id: p.id, usuario_id: pendientes[0]?.id ?? 0 })}>Cambiar personal</Btn>{' '}
+                  <Btn className="btn btn-sm" onClick={() => setHist(p)}>Historial ({p.anteriores})</Btn>
                 </td>
               </tr>
             ))}
@@ -227,7 +227,7 @@ export function Puestos() {
       </div>
       {asig && (
         <Modal title="Asignar persona a un puesto" onClose={() => setAsig(null)}
-          footer={<button className="btn btn-primary" onClick={async () => { if (await act(`/puestos/${asig.puesto_id}/asignar`, { usuario_id: asig.usuario_id }, 'Persona asignada al puesto.')) setAsig(null) }}>Asignar</button>}>
+          footer={<Btn className="btn btn-primary" onClick={async () => { if (await act(`/puestos/${asig.puesto_id}/asignar`, { usuario_id: asig.usuario_id }, 'Persona asignada al puesto.')) setAsig(null) }}>Asignar</Btn>}>
           {pendientes.length === 0 ? <Banner kind="warn">No hay registros pendientes. La persona debe registrarse primero con su DNI.</Banner> : <>
             <Field label="Persona">
               <select className="inp" value={asig.usuario_id} onChange={(e) => setAsig({ ...asig, usuario_id: +e.target.value })}>
@@ -259,7 +259,7 @@ export function Puestos() {
 // ---------- Notificaciones ----------
 
 const RUTA: Record<string, (id: number) => string> = {
-  epp: (id) => `/epp/${id}`, tarea: (id) => `/tareas/${id}`, inventario: () => '/inventario', puestos: () => '/puestos', biblioteca: () => '/biblioteca',
+  epp: (id) => `/epp/${id}`, tarea: (id) => `/tareas/${id}`, inventario: () => '/inventario', puestos: () => '/puestos', cuentas: () => '/cuentas', biblioteca: () => '/biblioteca',
 }
 
 export function Notificaciones() {
@@ -267,7 +267,7 @@ export function Notificaciones() {
   const act = useAction()
   const nav = useNavigate()
   return (
-    <Page title="Notificaciones" actions={<button className="btn" onClick={() => act('/notificaciones/leer-todas')}>Marcar todas como leídas</button>}>
+    <Page title="Notificaciones" actions={<Btn className="btn" onClick={() => act('/notificaciones/leer-todas')}>Marcar todas como leídas</Btn>}>
       <Loading q={q} />
       {q.data?.length === 0 && <p className="muted">No tienes notificaciones.</p>}
       <div className="space-y-2">

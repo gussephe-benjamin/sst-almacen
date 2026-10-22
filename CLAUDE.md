@@ -228,4 +228,7 @@ make test         # go test ./... y npm test
 - **Migraciones y seed** se ejecutan con el mismo binario: `go run ./cmd/api migrate` y `go run ./cmd/api seed`. El seed reinicia todas las tablas.
 - **Puertos:** API en `:8081` (el `:8080` estaba ocupado en la máquina de desarrollo), Postgres en `:5433`.
 - **Frontend simple:** React 19, Tailwind 4, sin React Hook Form/Zod ni Recharts (formularios controlados y barras en CSS). Se pueden incorporar después.
+- **Rol `admin`** (migración 0002): gestiona cuentas y puestos de los otros cuatro roles (`/api/admin/*`). Las cuentas admin solo se definen en `.env` (`ACCOUNTS_ADMIN`); el admin no puede crear otros admin ni liberar su propio puesto.
+- **Cuentas iniciales en `.env`** (`ACCOUNTS_<ROL>`, formato `DNI|contraseña|Nombres|Puesto|Área|Correo|Celular`). `EnsureAccounts` las crea al iniciar la API y tras el seed si el DNI no existe; nunca modifica cuentas existentes.
+- La sesión dura 7 días. Si la API responde 401 o la cuenta deja de tener puesto, el frontend vuelve al login conservando la URL.
 - Pendiente: pruebas de integración de permisos en Go, Playwright y Dockerfiles de producción (fase 8).

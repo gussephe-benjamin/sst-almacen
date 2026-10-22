@@ -49,6 +49,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		for _, n := range []string{"Mantenimiento", "Administración", "SST", "Calidad"} {
 			ex(`INSERT INTO areas (nombre, tipo, puede_resolver_hallazgos) VALUES ($1,'administrativa',true)`, n)
 		}
+		ex(`INSERT INTO areas (nombre, tipo) VALUES ('Dirección','administrativa')`)
 		tipos := []string{"Almacenamiento y estanterías", "Orden y limpieza", "Equipos de emergencia", "Señalización", "Instalaciones eléctricas",
 			"Tránsito de montacargas", "Infraestructura", "Uso de EPP", "Otro"}
 		for _, n := range tipos {
@@ -278,6 +279,7 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 			{"sst", nil, "Rosa Chávez terminó T-003. Revisa la evidencia para cerrarla.", "tarea", 3, 0.9},
 			{"sst", nil, "María Flores solicitó cambio de Lentes de seguridad (E-004).", "epp", 4, 1.0},
 			{"sst", nil, "Kevin Salazar se registró con DNI y espera asignación de puesto.", "puestos", 0, 1.0},
+			{"admin", nil, "Kevin Salazar se registró con DNI y espera asignación de puesto.", "cuentas", 0, 1.0},
 			{"sst", nil, "Stock bajo: Lentes de seguridad (4 en stock, mínimo 6).", "inventario", 3, 2.0},
 			{"mantenimiento", 6, "Ana Torres te asignó T-001: Reparar luz de emergencia del pasillo 3.", "tarea", 1, 2.0},
 			{"trabajador", 1, "Tu solicitud E-002 quedó en espera por falta de stock.", "epp", 2, 3.5},
