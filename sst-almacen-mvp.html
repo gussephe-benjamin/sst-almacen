@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SST Almacén: MVP navegable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7EAE8; --surface:#FFFFFF; --surface-2:#F4F6F5; --ink:#1C2529; --muted:#5B676D; --line:#D2D8D5; --line-soft:#E3E7E5;
+  --trab:#1E5CA8; --sst:#0D7650; --mant:#C99300; --admin:#5A4CB0;
+  --alto:#C3322A; --medio:#D98A0B; --bajo:#2F855A;
+  --ok-bg:#E3F2EA; --warn-bg:#FCF1DC; --bad-bg:#F9E2E0; --info-bg:#E2ECF8; --neutral-bg:#ECEFEE;
+  --cal:#2B8A9E; --tape-a:#F2C200; --tape-b:#1C2529;
+  --role:var(--sst); --role-ink:#fff;
+  --shadow:0 1px 0 rgba(28,37,41,.04), 0 8px 24px -12px rgba(28,37,41,.18);
+  color-scheme:light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13191C; --surface:#1B2328; --surface-2:#212B30; --ink:#E6ECEA; --muted:#9AA8AE; --line:#33414A; --line-soft:#2A363D;
+    --trab:#5B9BE6; --sst:#33B07E; --mant:#E7B42A; --admin:#9488E8;
+    --alto:#EC6A60; --medio:#F0A93A; --bajo:#5CC08A;
+    --ok-bg:#183327; --warn-bg:#3A2D12; --bad-bg:#3B1C1A; --info-bg:#182B42; --neutral-bg:#26313A;
+    --cal:#4FB6CB; --tape-b:#0E1316; --shadow:0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13191C; --surface:#1B2328; --surface-2:#212B30; --ink:#E6ECEA; --muted:#9AA8AE; --line:#33414A; --line-soft:#2A363D;
+  --trab:#5B9BE6; --sst:#33B07E; --mant:#E7B42A; --admin:#9488E8;
+  --alto:#EC6A60; --medio:#F0A93A; --bajo:#5CC08A;
+  --ok-bg:#183327; --warn-bg:#3A2D12; --bad-bg:#3B1C1A; --info-bg:#182B42; --neutral-bg:#26313A;
+  --cal:#4FB6CB; --tape-b:#0E1316; --shadow:0 8px 24px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body[data-role="trabajador"]{--role:var(--trab)}
+body[data-role="sst"]{--role:var(--sst)}
+body[data-role="mantenimiento"]{--role:var(--mant);--role-ink:#1C2529}
+body[data-role="administracion"]{--role:var(--admin)}
+button,input,select,textarea{font:inherit;color:inherit}
+img{max-width:100%;display:block}
+h1,h2,h3,h4{margin:0;line-height:1.15}
+p{margin:0}
+:focus-visible{outline:2px solid var(--role);outline-offset:2px}
+.svgi{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.cond{font-family:"Barlow Condensed","Barlow",system-ui,sans-serif}
+
+/* ---------- Demo bar ---------- */
+.demobar{position:relative;height:52px;background:#1C2529;color:#EEF2F0;display:flex;align-items:center;gap:14px;padding:0 18px 4px;z-index:30}
+.demobar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:repeating-linear-gradient(-45deg,var(--tape-a) 0 10px,var(--tape-b) 10px 20px)}
+.demobar .tag{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:15px;letter-spacing:.02em;background:var(--tape-a);color:#1C2529;padding:3px 9px;border-radius:4px}
+.demobar .lbl{color:#A9B6B3;font-size:13.5px}
+.rolesw{display:flex;gap:4px;background:#2A363C;padding:4px;border-radius:10px}
+.rolesw button{display:flex;align-items:center;gap:7px;border:0;background:transparent;color:#CBD5D2;padding:6px 12px;border-radius:7px;cursor:pointer;font-weight:500;font-size:14px}
+.rolesw button .dot{width:9px;height:9px;border-radius:50%}
+.rolesw button:hover{background:#34424A;color:#fff}
+.rolesw button[aria-pressed="true"]{background:#F4F6F5;color:#1C2529;font-weight:600}
+.demobar .sp{flex:1}
+.dbtn{display:flex;align-items:center;gap:7px;border:1px solid #3A4950;background:transparent;color:#E3EAE7;padding:6px 11px;border-radius:8px;cursor:pointer;font-size:13.5px}
+.dbtn:hover{background:#2A363C}
+.dbtn .cnt{background:var(--tape-a);color:#1C2529;font-weight:700;font-size:12px;border-radius:10px;padding:0 6px}
+
+/* ---------- Layout ---------- */
+.shell{height:100%;display:flex;flex-direction:column}
+.app{flex:1;min-height:0;display:grid;grid-template-columns:252px 1fr}
+.side{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px}
+.brand .mark{width:34px;height:34px;border-radius:8px;background:var(--role);color:var(--role-ink);display:grid;place-items:center}
+.brand .mark .svgi{width:20px;height:20px}
+.brand b{font-family:"Barlow Condensed",sans-serif;font-size:21px;font-weight:700;letter-spacing:.01em}
+.brand small{display:block;color:var(--muted);font-size:12.5px;margin-top:-2px}
+.who{margin:0 14px 10px;padding:12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-soft)}
+.who .r{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--role)}
+.who .r::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--role)}
+.who .n{font-weight:600;margin-top:4px}
+.who .p{color:var(--muted);font-size:13px}
+.nav{flex:1;overflow:auto;padding:6px 10px}
+.nav button{width:100%;display:flex;align-items:center;gap:11px;border:0;background:transparent;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--ink);font-size:14.5px;text-align:left}
+.nav button:hover{background:var(--surface-2)}
+.nav button[aria-current="page"]{background:color-mix(in srgb,var(--role) 13%,transparent);color:var(--ink);font-weight:600}
+.nav button[aria-current="page"] .svgi{color:var(--role)}
+.nav .badge{margin-left:auto;background:var(--role);color:var(--role-ink);font-size:11.5px;font-weight:700;border-radius:10px;padding:0 7px;line-height:19px}
+.nav .grp{font-size:12px;color:var(--muted);padding:12px 10px 4px}
+.side .foot{padding:12px 14px;border-top:1px solid var(--line-soft)}
+.main{overflow:auto;min-height:0;padding:28px 34px 60px}
+.page{max-width:1180px;margin:0 auto}
+.phead{display:flex;align-items:flex-end;gap:16px;margin-bottom:22px}
+.phead h1{font-family:"Barlow Condensed",sans-serif;font-size:32px;font-weight:700;letter-spacing:.005em}
+.phead p{color:var(--muted);margin-top:4px;max-width:70ch}
+.phead .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.crumb{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13.5px;border:0;background:none;cursor:pointer;padding:0;margin-bottom:8px}
+.crumb:hover{color:var(--ink)}
+
+/* ---------- Primitives ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.card.pad{padding:18px}
+.card h2{font-size:17px;font-weight:600}
+.card .sub{color:var(--muted);font-size:13.5px}
+.chead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.chead .sp{flex:1}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g-main{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.row{display:flex;align-items:center;gap:8px}
+.wrap{flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:500;font-size:14px;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--role);border-color:var(--role);color:var(--role-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--alto);border-color:color-mix(in srgb,var(--alto) 45%,var(--line))}
+.btn.danger:hover{background:var(--bad-bg)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--neutral-bg);color:var(--ink);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--bajo)}
+.chip.warn{background:var(--warn-bg);color:var(--medio)}
+.chip.bad{background:var(--bad-bg);color:var(--alto)}
+.chip.info{background:var(--info-bg);color:var(--trab)}
+.chip .d{width:7px;height:7px;border-radius:50%;background:currentColor}
+.rchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 8px 2px 6px;border-radius:6px;border:1px solid var(--line)}
+.rchip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.risk{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.risk i{width:10px;height:10px;transform:rotate(45deg);border-radius:2px;background:var(--c)}
+.empty{padding:34px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{border:0;background:none;padding:9px 12px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;gap:7px;align-items:center}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--role);font-weight:600}
+.tabs .n{font-size:12px;background:var(--neutral-bg);border-radius:9px;padding:0 6px}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:12.5px;color:var(--muted);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line)}
+.tbl td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--surface-2)}
+.tbl .code{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:15px;color:var(--muted)}
+.tscroll{overflow-x:auto}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13.5px;font-weight:600}
+.field .hint{font-size:12.5px;color:var(--muted)}
+.inp,select.inp,textarea.inp{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 11px;font-size:14.5px}
+textarea.inp{min-height:84px;resize:vertical}
+.inp:focus{outline:2px solid color-mix(in srgb,var(--role) 55%,transparent);border-color:var(--role)}
+.photo-drop{border:1.5px dashed var(--line);border-radius:10px;padding:14px;display:flex;align-items:center;gap:14px;background:var(--surface-2)}
+.photo-drop img{width:96px;height:72px;object-fit:cover;border-radius:6px}
+.photo-drop .ph{width:96px;height:72px;border-radius:6px;background:var(--line-soft);display:grid;place-items:center;color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filters .inp{width:auto;padding:7px 10px;font-size:14px}
+
+/* KPIs & charts */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .v{font-family:"Barlow Condensed",sans-serif;font-size:36px;font-weight:700;line-height:1}
+.kpi .v small{font-size:17px;font-weight:600;color:var(--muted);margin-left:3px}
+.kpi .l{color:var(--muted);font-size:13px;margin-top:6px}
+.kpi.alert{border-color:color-mix(in srgb,var(--alto) 50%,var(--line))}
+.kpi.alert .v{color:var(--alto)}
+.bars{display:flex;flex-direction:column;gap:10px;padding:16px 18px}
+.bar{display:grid;grid-template-columns:170px 1fr 44px;gap:10px;align-items:center;font-size:13.5px}
+.bar .t{height:12px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.bar .t span{display:block;height:100%;background:var(--c,var(--sst));border-radius:3px}
+.bar .num{text-align:right;font-weight:600}
+.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:18px 18px 12px}
+.stack span{display:block;height:100%}
+.legend{display:flex;gap:16px;padding:0 18px 16px;flex-wrap:wrap;font-size:13.5px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;background:var(--c)}
+.cols{display:flex;align-items:flex-end;gap:14px;height:170px;padding:18px 18px 0}
+.cols .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.cols .c .b{width:100%;max-width:46px;background:var(--sst);border-radius:4px 4px 0 0;display:flex;flex-direction:column-reverse;overflow:hidden}
+.cols .c .b span{display:block}
+.cols .c .val{font-weight:700;font-size:13.5px}
+.cols-x{display:flex;gap:14px;padding:6px 18px 16px;border-top:1px solid var(--line-soft);margin:0}
+.cols-x span{flex:1;text-align:center;font-size:12.5px;color:var(--muted)}
+.attn{display:flex;flex-direction:column}
+.attn button{display:flex;align-items:center;gap:12px;border:0;border-bottom:1px solid var(--line-soft);background:none;padding:12px 18px;text-align:left;cursor:pointer}
+.attn button:last-child{border-bottom:0}
+.attn button:hover{background:var(--surface-2)}
+.attn .ic{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--c-bg);color:var(--c)}
+.attn .tx{flex:1;min-width:0}
+.attn .tx b{display:block;font-weight:600;font-size:14px}
+.attn .tx span{color:var(--muted);font-size:13px}
+
+/* Kanban */
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.kcol{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:12px;padding:12px}
+.kcol h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;padding:2px 4px 10px}
+.kcol h3 .n{font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:0 7px;font-weight:600}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:10px;cursor:pointer;text-align:left;width:100%;display:block}
+.kcard:hover{border-color:var(--role)}
+.kcard .top{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)}
+.kcard b{display:block;margin:5px 0 8px;font-size:14.5px;font-weight:600;line-height:1.3}
+.kcard .flag{margin-top:9px;font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center;padding:6px 8px;border-radius:6px}
+.kcard .flag.bad{background:var(--bad-bg);color:var(--alto)}
+.kcard .flag.warn{background:var(--warn-bg);color:var(--medio)}
+.kcard .flag.ok{background:var(--ok-bg);color:var(--bajo)}
+.prog{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.prog .t{flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.prog .t span{display:block;height:100%;background:var(--role)}
+
+/* Task / detail */
+.dl{display:grid;grid-template-columns:150px 1fr;gap:9px 14px;font-size:14px}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0;font-weight:500}
+.steps{list-style:none;margin:0;padding:0}
+.step{display:grid;grid-template-columns:30px 1fr auto;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-soft);align-items:start}
+.step:last-child{border-bottom:0}
+.step .num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13.5px;border:1.5px solid var(--line);color:var(--muted);font-family:"Barlow Condensed",sans-serif}
+.step.done .num{background:var(--bajo);border-color:var(--bajo);color:#fff}
+.step.redo .num{background:var(--bad-bg);border-color:var(--alto);color:var(--alto)}
+.step .ttl{font-weight:600}
+.ev{display:flex;gap:12px;margin-top:9px;background:var(--surface-2);border-radius:8px;padding:8px;align-items:flex-start}
+.ev img{width:120px;height:84px;object-fit:cover;border-radius:6px;cursor:zoom-in}
+.ev p{font-size:13.5px}
+.ev small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.banner{display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-radius:10px;margin-bottom:16px;border:1px solid}
+.banner .svgi{margin-top:2px}
+.banner b{display:block}
+.banner.bad{background:var(--bad-bg);border-color:color-mix(in srgb,var(--alto) 35%,transparent);color:var(--ink)}
+.banner.bad .svgi{color:var(--alto)}
+.banner.warn{background:var(--warn-bg);border-color:color-mix(in srgb,var(--medio) 35%,transparent)}
+.banner.warn .svgi{color:var(--medio)}
+.banner.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--bajo) 35%,transparent)}
+.banner.ok .svgi{color:var(--bajo)}
+.banner.info{background:var(--info-bg);border-color:color-mix(in srgb,var(--trab) 30%,transparent)}
+.banner.info .svgi{color:var(--trab)}
+.banner .acts{margin-left:auto;display:flex;gap:8px;align-self:center}
+.hist{list-style:none;margin:0;padding:6px 18px 14px}
+.hist li{position:relative;padding:9px 0 9px 20px;font-size:13.5px;border-left:1.5px solid var(--line);margin-left:4px}
+.hist li::before{content:"";position:absolute;left:-5px;top:14px;width:8px;height:8px;border-radius:50%;background:var(--surface);border:1.5px solid var(--muted)}
+.hist li small{display:block;color:var(--muted);font-size:12.5px}
+.photos{display:flex;gap:10px;flex-wrap:wrap}
+.photos img{width:160px;height:112px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line-soft)}
+
+/* EPP stepper */
+.track{display:flex;align-items:center;gap:0;margin-top:12px}
+.track .s{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);white-space:nowrap}
+.track .s i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;flex:none}
+.track .s.on{color:var(--ink);font-weight:600}
+.track .s.on i{background:var(--c,var(--role));border-color:var(--c,var(--role));color:#fff}
+.track .s i .svgi{width:12px;height:12px;stroke-width:2.6}
+.track .ln{flex:1;height:1.5px;background:var(--line);margin:0 10px;min-width:20px}
+.track .ln.on{background:var(--role)}
+.req{padding:16px 18px;border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:76px 1fr auto;gap:16px;align-items:center;cursor:pointer}
+.req:hover{background:var(--surface-2)}
+.req:last-child{border-bottom:0}
+.req img{width:76px;height:58px;object-fit:cover;border-radius:6px}
+
+/* Library */
+.lib{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.libc{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column}
+.libc:hover{border-color:var(--role)}
+.libc .th{aspect-ratio:16/9;display:grid;place-items:center;background:var(--c);color:#fff;position:relative}
+.libc .th img{width:100%;height:100%;object-fit:cover}
+.libc .bd{padding:13px 15px 15px}
+.libc .bd b{display:block;font-size:15px;margin:5px 0 4px;line-height:1.3}
+.libc .bd p{color:var(--muted);font-size:13.5px}
+.sign{width:74px;height:74px;display:grid;place-items:center;color:#fff}
+.sign .svgi{width:38px;height:38px;stroke-width:2}
+.sign.circle{border-radius:50%;background:rgba(255,255,255,.18);border:4px solid #fff}
+.sign.tri{clip-path:polygon(50% 4%,98% 94%,2% 94%);background:#F2C200;color:#1C2529;width:84px;height:76px;padding-top:16px}
+.sign.sq{border-radius:10px;background:rgba(255,255,255,.18);border:4px solid #fff}
+
+/* Login */
+.login{flex:1;display:grid;grid-template-columns:1.05fr 1fr}
+.login .left{background:#1C2529;color:#EEF2F0;padding:56px 56px 40px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.login .left::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:repeating-linear-gradient(-45deg,#F2C200 0 16px,#1C2529 16px 32px)}
+.login .left h1{font-family:"Barlow Condensed",sans-serif;font-size:58px;line-height:.98;font-weight:700;margin-top:36px;max-width:12ch}
+.login .left p{color:#B3C0BC;font-size:16.5px;margin-top:18px;max-width:46ch}
+.tour{margin-top:auto;padding-top:28px;border-top:1px solid #34424A}
+.tour h3{font-size:15px;font-weight:600;margin-bottom:12px;color:#F2C200}
+.tour ol{margin:0;padding:0;list-style:none;counter-reset:t;display:grid;gap:9px}
+.tour li{counter-increment:t;display:grid;grid-template-columns:26px 1fr;gap:10px;font-size:14px;color:#D6DFDC}
+.tour li::before{content:counter(t);width:22px;height:22px;border-radius:50%;border:1.5px solid #5C6D74;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:"Barlow Condensed",sans-serif}
+.tour li b{color:#fff;font-weight:600}
+.login .right{padding:56px;display:flex;flex-direction:column;justify-content:center;max-width:620px;width:100%;margin:0 auto}
+.login .right h2{font-family:"Barlow Condensed",sans-serif;font-size:30px;font-weight:700}
+.picks{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 24px}
+.pick{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:flex;gap:12px;align-items:flex-start}
+.pick:hover{border-color:var(--c)}
+.pick[aria-pressed="true"]{border-color:var(--c);box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 30%,transparent)}
+.pick .ic{width:38px;height:38px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;flex:none}
+.pick b{display:block;font-size:15px}
+.pick span{display:block;color:var(--muted);font-size:13px}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin-bottom:16px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* Overlays */
+.scrim{position:fixed;inset:0;background:rgba(15,20,23,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal{background:var(--surface);border-radius:14px;width:min(560px,100%);max-height:calc(100% - 20px);display:flex;flex-direction:column;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)}
+.modal.wide{width:min(820px,100%)}
+.modal .mh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line-soft)}
+.modal .mh h3{font-size:18px;font-weight:600;flex:1}
+.modal .mb{padding:18px 20px;overflow:auto}
+.modal .mf{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--line-soft)}
+.drawer{position:fixed;top:52px;right:0;bottom:0;width:420px;background:var(--surface);border-left:1px solid var(--line);z-index:40;display:flex;flex-direction:column;transform:translateX(100%);visibility:hidden;transition:transform .22s ease,visibility 0s .22s}
+.drawer.open{transform:none;visibility:visible;transition:transform .22s ease;box-shadow:-20px 0 40px -24px rgba(0,0,0,.35)}
+.drawer .dh{padding:16px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+.drawer .dh h3{font-size:17px;flex:1}
+.drawer .db{overflow:auto;padding:6px 0}
+.act{padding:12px 18px;border-bottom:1px solid var(--line-soft)}
+.act .fl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.act .fl .svgi{width:14px;height:14px;color:var(--muted)}
+.act p{font-size:14px;margin-top:6px}
+.act small{color:var(--muted);font-size:12.5px}
+.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:#1C2529;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);animation:tin .25s ease}
+.toast .svgi{color:#7FD6A8}
+.toast em{font-style:normal;color:#F2C200;font-weight:600}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:80;display:grid;place-items:center;padding:40px;cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.notif{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line-soft);align-items:flex-start;cursor:pointer}
+.notif:hover{background:var(--surface-2)}
+.notif.unread{background:color-mix(in srgb,var(--role) 6%,transparent)}
+.notif .ic{width:34px;height:34px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;flex:none;color:var(--c,var(--muted))}
+.notif .tx{flex:1}
+.notif .tx small{color:var(--muted);display:block;font-size:12.5px;margin-top:2px}
+.notif .u{width:9px;height:9px;border-radius:50%;background:var(--role);margin-top:6px}
+.hello{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px}
+.cta{background:var(--trab);color:#fff;border-radius:14px;padding:24px;display:flex;gap:20px;align-items:center;border:0;text-align:left;cursor:pointer;width:100%}
+.cta:hover{filter:brightness(1.06)}
+.cta .sign{flex:none}
+.cta h2{font-family:"Barlow Condensed",sans-serif;font-size:28px;font-weight:700}
+.cta p{opacity:.85;margin-top:4px}
+.mini{display:flex;gap:10px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--line-soft)}
+.mini:last-child{border-bottom:0}
+.stockbar{display:flex;align-items:center;gap:8px}
+.stockbar .t{width:80px;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.stockbar .t span{display:block;height:100%}
+.qty{display:flex;align-items:center;gap:6px}
+.qty .inp{width:80px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.lib{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:860px){.app{grid-template-columns:1fr}.side{display:none}.login{grid-template-columns:1fr}.g2,.g3,.g-main,.hello,.kanban{grid-template-columns:1fr}.main{padding:20px}}
+.chip .svgi{width:13px;height:13px;stroke-width:2.2}
+.kcard .flag .svgi,.btn .svgi{width:16px;height:16px}
+.kcard .flag.info{background:var(--info-bg);color:var(--trab)}
+.step .num .svgi{width:15px;height:15px;stroke-width:2.6}
+.attn > button > .svgi{color:var(--muted)}
+.rchip{background:var(--surface)}
+#root{height:100%}
+
+.resp{display:flex;flex-direction:column;padding:0 8px 6px}
+.resp-r{display:grid;grid-template-columns:12px 1fr auto 44px 48px;gap:10px;align-items:center;border:0;background:none;padding:9px 10px;border-radius:8px;text-align:left;cursor:pointer}
+.resp-r:hover{background:var(--surface-2)}
+.resp-r i{width:12px;height:12px;border-radius:3px;background:var(--c)}
+.resp-r .nm{font-weight:600}
+.resp-r b{font-size:22px;text-align:right}
+.resp-r .pc{font-weight:600;color:var(--muted);text-align:right}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+<aside id="drawer" class="drawer" aria-label="Actividad entre roles"></aside>
+<div id="modal"></div>
+<div id="lb"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+/* ===================== Utilidades ===================== */
+const DAY = 864e5;
+const now = () => Date.now();
+const dAgo = (d) => now() - d * DAY;
+const dIn = (d) => now() + d * DAY;
+const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtD = (t) => { const d = new Date(t); return d.getDate() + ' ' + MES[d.getMonth()]; };
+const fmtDY = (t) => { const d = new Date(t); return d.getDate() + ' ' + MES[d.getMonth()] + ' ' + d.getFullYear(); };
+const fmtDT = (t) => { const d = new Date(t); return fmtD(t) + ', ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+const sod = (t) => { const d = new Date(t); d.setHours(0,0,0,0); return d.getTime(); };
+const daysLeft = (t) => Math.round((sod(t) - sod(now())) / DAY);
+const isoDate = (t) => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const parseDate = (v) => new Date(v + 'T17:00:00').getTime();
+const rel = (t) => {
+  const m = Math.round((now() - t) / 6e4);
+  if (m < 1) return 'ahora';
+  if (m < 60) return 'hace ' + m + ' min';
+  const h = Math.round(m / 60);
+  if (h < 24) return 'hace ' + h + ' h';
+  const d = Math.round(h / 24);
+  if (d < 30) return 'hace ' + d + (d === 1 ? ' día' : ' días');
+  return fmtD(t);
+};
+
+/* ===================== Íconos ===================== */
+const IC = {
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+  alert:'<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+  clip:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6M9 18h3"/>',
+  helmet:'<path d="M4.5 16a7.5 7.5 0 0 1 15 0"/><path d="M2.5 16h19v3h-19z"/><path d="M12 8.5V5.5"/><path d="M8 10l-1-2.5M16 10l1-2.5"/>',
+  box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  book:'<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
+  bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  chart:'<path d="M4 20V4M4 20h16"/><path d="M8 16v-5M12 16V8M16 16v-3"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/>',
+  check:'<path d="M4 12.5 9.5 18 20 6"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  download:'<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',
+  activity:'<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  logout:'<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
+  refresh:'<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  shield:'<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  wrench:'<path d="M15 4.5a4.5 4.5 0 0 0-5.6 5.6L3.5 16a2 2 0 0 0 0 2.8l1.7 1.7a2 2 0 0 0 2.8 0l5.9-5.9a4.5 4.5 0 0 0 5.6-5.6l-2.8 2.8-2.6-.5-.5-2.6z"/>',
+  brief:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 13h18"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  back:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  left:'<path d="M15 6l-6 6 6 6"/>',
+  right:'<path d="M9 6l6 6-6 6"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  trash:'<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/>',
+  undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  flag:'<path d="M5 21V4h11l-2 4 2 4H5"/>',
+  route:'<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H16a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h7.5"/>',
+  file:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+  pause:'<circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/>',
+  send:'<path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  run:'<circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M6 12l3-4 4 1 3 3 3 1M11 15l-1-5"/>',
+  fire:'<path d="M12 21c-4 0-7-2.7-7-6.5 0-3 2-5 3.5-6.5.2 2 1.3 3 2.5 3.5C11 8 12 5 14.5 3c.2 3 4.5 5.5 4.5 11 0 4-3 7-7 7z"/>',
+  hands:'<path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11M10 10V5a1.5 1.5 0 0 1 3 0v5M13 10V6a1.5 1.5 0 0 1 3 0v6"/><path d="M16 12v-1.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4a1.5 1.5 0 0 1 2.5-1.6L7 14"/>',
+  forklift:'<path d="M3 17V9h6l3 4v4"/><path d="M15 4v13h6"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/>'
+};
+const ic = (n, cls) => `<svg class="svgi ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+
+/* ===================== Fotos de ejemplo (SVG) ===================== */
+function photo(scene, label) {
+  const O = {
+    luz:'<rect x="150" y="50" width="100" height="44" rx="6" fill="#F1F1EE" stroke="#777" stroke-width="2"/><circle cx="178" cy="72" r="13" fill="#8E9491"/><circle cx="222" cy="72" r="13" fill="#8E9491"/><rect x="192" y="98" width="16" height="8" fill="#B33"/>',
+    luz_ok:'<circle cx="178" cy="72" r="40" fill="#FFF7C2" opacity=".55"/><circle cx="222" cy="72" r="40" fill="#FFF7C2" opacity=".55"/><rect x="150" y="50" width="100" height="44" rx="6" fill="#F1F1EE" stroke="#777" stroke-width="2"/><circle cx="178" cy="72" r="13" fill="#FFF09A"/><circle cx="222" cy="72" r="13" fill="#FFF09A"/><rect x="192" y="98" width="16" height="8" fill="#2A9D5C"/>',
+    bateria:'<rect x="150" y="70" width="100" height="120" rx="8" fill="#3B4245"/><rect x="180" y="58" width="40" height="14" fill="#3B4245"/><rect x="164" y="100" width="72" height="16" fill="#2A9D5C"/><rect x="164" y="124" width="72" height="16" fill="#2A9D5C"/><rect x="164" y="148" width="72" height="16" fill="#555"/>',
+    piso:'<polyline points="50,200 120,214 150,204 210,232 262,214 340,240" fill="none" stroke="#3A3E3B" stroke-width="3.5"/><polyline points="150,204 168,188" stroke="#3A3E3B" stroke-width="2.5" fill="none"/><polyline points="262,214 280,196" stroke="#3A3E3B" stroke-width="2.5" fill="none"/>',
+    cinta:'<polyline points="70,206 130,214 170,206 230,226" fill="none" stroke="#3A3E3B" stroke-width="3"/><polygon points="70,232 92,174 114,232" fill="#E8661A"/><rect x="83" y="196" width="18" height="7" fill="#fff"/><polygon points="286,232 308,174 330,232" fill="#E8661A"/><rect x="299" y="196" width="18" height="7" fill="#fff"/><line x1="92" y1="186" x2="308" y2="186" stroke="#F2C200" stroke-width="7" stroke-dasharray="16 10"/>',
+    resane:'<rect x="40" y="194" width="320" height="36" fill="#9AA09C"/><rect x="40" y="194" width="320" height="36" fill="none" stroke="#7B827E" stroke-dasharray="6 6"/>',
+    senal:'<rect x="140" y="48" width="120" height="70" rx="4" fill="#0B8A4E"/><circle cx="188" cy="62" r="6" fill="#fff"/><path d="M170 104l10-22 12 6 6 14M180 82l14-4 8 8" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M220 83h22m-8-8 8 8-8 8" stroke="#fff" stroke-width="5" fill="none"/>',
+    extintor:'<rect x="178" y="80" width="44" height="130" rx="18" fill="#C9302C"/><rect x="186" y="62" width="28" height="22" fill="#333"/><path d="M214 70q30 0 26 50" stroke="#222" stroke-width="5" fill="none"/><rect x="186" y="120" width="28" height="36" fill="#fff" opacity=".85"/>',
+    casco:'<path d="M140 190a60 60 0 0 1 120 0z" fill="#F2C200"/><rect x="124" y="186" width="152" height="12" rx="6" fill="#D9AC00"/><path d="M200 132v56" stroke="#D9AC00" stroke-width="6"/><polyline points="176,142 188,160 180,174 194,188" stroke="#333" stroke-width="2.5" fill="none"/>',
+    guantes:'<g fill="#9AA3A0" stroke="#6E7673" stroke-width="2"><rect x="165" y="140" width="70" height="70" rx="14"/><rect x="167" y="96" width="14" height="52" rx="7"/><rect x="184" y="88" width="14" height="60" rx="7"/><rect x="201" y="90" width="14" height="58" rx="7"/><rect x="218" y="98" width="14" height="50" rx="7"/></g><rect x="165" y="196" width="70" height="20" fill="#E8661A"/><path d="M190 110l8 14" stroke="#B33" stroke-width="3"/>',
+    zapatos:'<path d="M120 208v-60h50v35l80 10q22 4 22 15z" fill="#2E2A28"/><rect x="118" y="206" width="166" height="10" rx="4" fill="#111"/><path d="M210 206q20 -10 40 0" stroke="#C9302C" stroke-width="3" fill="none"/>',
+    lentes:'<g fill="#BFE0F2" stroke="#2B3A40" stroke-width="5"><ellipse cx="165" cy="150" rx="40" ry="28"/><ellipse cx="245" cy="150" rx="40" ry="28"/></g><line x1="204" y1="146" x2="206" y2="146" stroke="#2B3A40" stroke-width="6"/><g stroke="#fff" stroke-width="2"><line x1="145" y1="140" x2="178" y2="162"/><line x1="230" y1="134" x2="262" y2="164"/><line x1="150" y1="158" x2="160" y2="138"/></g>',
+    chaleco:'<path d="M150 70l25-10 25 30 25-30 25 10 10 140H140z" fill="#F07A1A"/><rect x="143" y="150" width="114" height="10" fill="#E7E7E2" opacity=".55"/><rect x="143" y="175" width="114" height="10" fill="#E7E7E2" opacity=".55"/>',
+    tapones:'<rect x="160" y="150" width="34" height="18" rx="9" fill="#F07A1A"/><rect x="206" y="160" width="34" height="18" rx="9" fill="#F07A1A"/><path d="M194 159q6 0 12 10" stroke="#2E7BC4" stroke-width="2" fill="none"/>',
+    rack:'<g fill="#2B5FA8"><rect x="60" y="30" width="12" height="200"/><rect x="200" y="30" width="12" height="200"/><rect x="330" y="30" width="12" height="200"/></g><g fill="#E8661A"><rect x="60" y="90" width="282" height="9"/><rect x="60" y="160" width="140" height="9"/><path d="M212 160q60 22 130 0v9q-70 22-130 0z"/></g><rect x="90" y="120" width="60" height="40" fill="#C8A57A"/><rect x="230" y="50" width="70" height="40" fill="#C8A57A"/>',
+    doc:'<rect x="135" y="36" width="130" height="186" rx="4" fill="#FAFAF7" stroke="#999"/><g stroke="#B7BDBA" stroke-width="5"><line x1="152" y1="66" x2="248" y2="66"/><line x1="152" y1="86" x2="230" y2="86"/><line x1="152" y1="106" x2="248" y2="106"/><line x1="152" y1="126" x2="210" y2="126"/></g><rect x="152" y="160" width="64" height="24" fill="#0D7650" opacity=".85"/>',
+    cajas:'<g fill="#C8A57A" stroke="#9C7D55" stroke-width="2"><rect x="130" y="170" width="70" height="56"/><rect x="200" y="170" width="70" height="56"/><rect x="150" y="114" width="70" height="56"/><rect x="220" y="114" width="70" height="56"/><rect x="170" y="58" width="70" height="56"/><rect x="186" y="10" width="62" height="48"/></g><line x1="110" y1="40" x2="310" y2="40" stroke="#C3322A" stroke-width="3" stroke-dasharray="10 6"/>',
+    aceite:'<ellipse cx="200" cy="212" rx="110" ry="18" fill="#2B2724" opacity=".85"/><ellipse cx="180" cy="208" rx="40" ry="5" fill="#6C6560" opacity=".6"/>',
+    cable:'<rect x="140" y="40" width="120" height="150" fill="#9DA4A1" stroke="#6E7673" stroke-width="3"/><rect x="152" y="54" width="96" height="120" fill="#5E6562"/><path d="M200 174q-10 30 30 50" stroke="#C3322A" stroke-width="6" fill="none"/><path d="M212 174q4 28 50 40" stroke="#1C1C1C" stroke-width="6" fill="none"/><path d="M226 214l6 8m4-14l8 4" stroke="#F2C200" stroke-width="3"/>',
+    trabajo:'<rect x="150" y="150" width="100" height="62" rx="6" fill="#C3322A"/><path d="M180 150v-14h40v14" stroke="#333" stroke-width="6" fill="none"/><rect x="150" y="174" width="100" height="6" fill="#8E2420"/>',
+    botiquin:'<rect x="150" y="80" width="100" height="80" rx="8" fill="#fff" stroke="#AAA" stroke-width="2"/><rect x="190" y="96" width="20" height="48" fill="#0D7650"/><rect x="176" y="110" width="48" height="20" fill="#0D7650"/>',
+    generic:'<polygon points="150,232 172,170 194,232" fill="#E8661A"/><rect x="161" y="194" width="22" height="7" fill="#fff"/><polygon points="210,232 232,170 254,232" fill="#E8661A"/><rect x="221" y="194" width="22" height="7" fill="#fff"/>'
+  };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280"><defs><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CDD3D0"/><stop offset="1" stop-color="#B0B8B4"/></linearGradient><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8C938F"/><stop offset="1" stop-color="#6A716D"/></linearGradient></defs><rect width="400" height="180" fill="url(#w)"/><rect y="180" width="400" height="100" fill="url(#f)"/><rect y="238" width="400" height="6" fill="#E8B800" opacity=".8"/>${O[scene]||O.generic}<rect y="252" width="400" height="28" fill="rgba(0,0,0,.5)"/><text x="12" y="271" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#fff">${esc(label||'Foto de evidencia')}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+const ITEM_SCENE = {casco:'casco',guantes:'guantes',lentes:'lentes',zap42:'zapatos',zap40:'zapatos',chaleco:'chaleco',tapones:'tapones',arnes:'chaleco',pqs:'extintor',co2:'extintor',luzled:'luz_ok',botiquin:'botiquin'};
+
+/* ===================== Catálogos ===================== */
+const ROLES = {
+  trabajador:{label:'Trabajador', c:'var(--trab)', icon:'helmet'},
+  sst:{label:'SST', c:'var(--sst)', icon:'shield'},
+  mantenimiento:{label:'Mantenimiento', c:'var(--mant)', icon:'wrench'},
+  administracion:{label:'Administración', c:'var(--admin)', icon:'brief'}
+};
+const TIPOS = ['Orden y limpieza','Almacenamiento y estanterías','Equipos de emergencia','Señalización','Instalaciones eléctricas','Uso de EPP','Tránsito de montacargas','Infraestructura'];
+const AREAS = ['Almacén A','Almacén B','Zona de carga','Patio de maniobras','Oficinas'];
+const RIESGOS = ['Alto','Medio','Bajo'];
+const AREAS_RESP = ['Mantenimiento','Administración','SST','Calidad'];
+const ARC = {'Mantenimiento':'var(--mant)','Administración':'var(--admin)','SST':'var(--sst)','Calidad':'var(--cal)'};
+const RC = {Alto:'var(--alto)', Medio:'var(--medio)', Bajo:'var(--bajo)'};
+const PRIOR = ['Alta','Media','Baja'];
+const CATS = ['EPP','Extintores','Señalización','Botiquines','Luces de emergencia'];
+const MOTIVOS = ['Desgaste por uso','Rotura o daño','Pérdida','Talla incorrecta','Vencimiento','Otro'];
+const LIBTIPOS = ['Afiche','Flyer','Procedimiento','Instructivo'];
+const LIBC = {Afiche:'#1E5CA8', Flyer:'#0D7650', Procedimiento:'#3B4A52', Instructivo:'#B4532A'};
+
+/* ===================== Datos de demostración ===================== */
+function seed() {
+  const P = (id, nombre, rol, area, nom, dni, correo, cel, desde) => ({id, nombre, rol, area, persona:{nombre:nom, dni, correo, celular:cel, desde}, historial:[]});
+  const puestos = [
+    P('P1','Operario de almacén 1','trabajador','Operativa','Luis Quispe','71234567','luisquispe@gmail.com','987 112 334', dAgo(420)),
+    P('P2','Operario de almacén 2','trabajador','Operativa','Pedro Huamán','70456123','pedro.hc@hotmail.com','965 774 120', dAgo(260)),
+    P('P3','Auxiliar de despacho','trabajador','Operativa','María Flores','72561894','mflores.d@gmail.com','944 208 991', dAgo(190)),
+    P('P4','Operador de montacargas','trabajador','Operativa','Jorge Ramos','70918273','jramos88@gmail.com','912 336 450', dAgo(610)),
+    P('P5','Jefa de SST','sst','Administrativa','Ana Torres','45678912','atorres.sst@gmail.com','998 450 216', dAgo(730)),
+    P('P6','Técnico de mantenimiento','mantenimiento','Administrativa','Carlos Mendoza','43219876','cmendoza.mant@gmail.com','976 551 803', dAgo(540)),
+    P('P7','Asistente de administración','administracion','Administrativa','Rosa Chávez','46781234','rchavez.adm@gmail.com','953 667 142', dAgo(320))
+  ];
+  puestos[1].historial.push({nombre:'Raúl Paredes', dni:'70112908', desde:dAgo(900), hasta:dAgo(261)});
+  const personas = [{dni:'74561230', nombre:'Kevin Salazar', correo:'kevin.salazar@gmail.com', celular:'981 640 327', tipo:'Operativa', area:'Almacén B', fecha:dAgo(1)}];
+
+  const h = (f, quien, puesto, t) => ({f, quien, puesto, t});
+  const ANA = ['Ana Torres','Jefa de SST'], CAR = ['Carlos Mendoza','Técnico de mantenimiento'], ROS = ['Rosa Chávez','Asistente de administración'];
+
+  const H = (id, dias, desc, detalle, tipo, area, riesgo, prioridad, scene, estado, cerradoDias, extra) => {
+    const fecha = dAgo(dias);
+    const o = {id, fecha, desc, detalle, tipo, area, riesgo, prioridad, responsable:'Ana Torres', fotos:[photo(scene, id + ', ' + fmtD(fecha))], estado, cerradoEn: cerradoDias!=null ? dAgo(cerradoDias) : null, motivo:'', hist:[h(fecha, ...ANA, 'Registró el hallazgo durante la inspección')]};
+    if (estado === 'cerrado') o.hist.push(h(o.cerradoEn, ...ANA, 'Cerró el hallazgo'));
+    return Object.assign(o, extra||{});
+  };
+  const hallazgos = [
+    H('H-001',150,'Travesaño del rack 4 deformado','El travesaño inferior del rack 4 presenta una deformación visible por impacto de montacargas. Carga apoyada sobre el tramo dañado.','Almacenamiento y estanterías','Almacén A','Alto','Alta','rack','cerrado',143),
+    H('H-002',131,'Pasadizo obstruido con parihuelas','Parihuelas vacías apiladas en el pasadizo principal reducen el ancho libre de evacuación.','Orden y limpieza','Almacén B','Medio','Media','cajas','cerrado',129),
+    H('H-003',112,'Extintor PQS con carga vencida','Extintor ubicado junto a la puerta de la zona de carga con tarjeta de recarga vencida hace dos meses.','Equipos de emergencia','Zona de carga','Alto','Alta','extintor','cerrado',105),
+    H('H-004',96,'Señal de salida despintada','La señal de salida del lado norte está decolorada y no es legible a más de 5 metros.','Señalización','Almacén A','Bajo','Baja','senal','cerrado',82),
+    H('H-005',81,'Cable expuesto en tablero eléctrico','Tablero del patio con la puerta abierta y un conductor sin aislamiento.','Instalaciones eléctricas','Patio de maniobras','Alto','Alta','cable','cerrado',77),
+    H('H-006',70,'Derrame de líquido en pasillo 2','Derrame reportado en el pasillo 2.','Orden y limpieza','Almacén A','Bajo','Baja','aceite','descartado',null,{motivo:'Al verificar, el derrame ya había sido limpiado por el personal de turno y no se encontró fuente de fuga.'}),
+    H('H-007',61,'Montacargas sin alarma de retroceso','El montacargas 02 no emite alarma sonora al retroceder.','Tránsito de montacargas','Patio de maniobras','Alto','Alta','generic','cerrado',52),
+    H('H-008',46,'Botiquín incompleto en oficina de despacho','Faltan gasas, vendas y alcohol en el botiquín de la oficina de despacho.','Equipos de emergencia','Oficinas','Medio','Media','botiquin','cerrado',41),
+    H('H-009',3,'Luz de emergencia del pasillo 3 no enciende','En la prueba de corte de energía, la luz de emergencia del pasillo 3 no encendió.','Equipos de emergencia','Almacén A','Alto','Alta','luz','en_atencion',null),
+    H('H-010',9,'Fisuras en el piso de la zona de carga','Fisuras de 1 a 2 cm en la losa, en la ruta de tránsito de transpaletas.','Infraestructura','Zona de carga','Medio','Media','piso','en_atencion',null),
+    H('H-011',13,'Rutas de evacuación sin señalizar','Faltan señales de ruta de evacuación en el almacén B tras la redistribución de racks.','Señalización','Almacén B','Medio','Media','senal','en_atencion',null),
+    H('H-012',6,'Extintores CO2 por recargar','Los dos extintores de CO2 del área eléctrica vencen su recarga este mes.','Equipos de emergencia','Zona de carga','Alto','Alta','extintor','en_atencion',null),
+    H('H-013',1,'Cajas apiladas sobre la altura permitida','Columna de cajas en el almacén B supera la línea de altura máxima de apilamiento.','Almacenamiento y estanterías','Almacén B','Medio','Media','cajas','registrado',null),
+    H('H-014',0.2,'Mancha de aceite junto al montacargas 01','Mancha de aceite en el área de estacionamiento del montacargas 01.','Orden y limpieza','Patio de maniobras','Bajo','Baja','aceite','registrado',null)
+  ];
+  hallazgos.find(x=>x.id==='H-006').hist.push(h(dAgo(69.8), ...ANA, 'Descartó el hallazgo'));
+  const RA = {'H-001':'Mantenimiento','H-002':'SST','H-003':'Administración','H-004':'SST','H-005':'Mantenimiento','H-006':'SST','H-007':'Mantenimiento','H-008':'Administración','H-009':'Mantenimiento','H-010':'Mantenimiento','H-011':'Administración','H-012':'Administración','H-013':'Calidad','H-014':'SST'};
+  hallazgos.forEach(x => x.areaResp = RA[x.id]);
+
+  const step = (t, done, scene, com, dias, quien) => ({t, done, redo:false, ev: done ? {foto:photo(scene, 'Evidencia, ' + fmtD(dAgo(dias))), com, fecha:dAgo(dias), quien} : null});
+  const T = (o) => Object.assign({mod:null, modResp:null, devol:null, hist:[]}, o);
+  const tareas = [
+    T({id:'T-001', hallazgo:'H-009', titulo:'Reparar luz de emergencia del pasillo 3', desc:'Revisar y dejar operativa la luz de emergencia del pasillo 3. Si el equipo no tiene reparación, reemplazarlo por uno del inventario.', area:'mantenimiento', puesto:'P6', creada:dAgo(2), limite:dIn(3), estado:'asignada', escena:'luz_ok',
+      pasos:[step('Revisar batería y conexión'),step('Reparar o reemplazar el equipo'),step('Probar el encendido con corte de energía')],
+      hist:[h(dAgo(2), ...ANA, 'Creó la tarea y la asignó a Carlos Mendoza')]}),
+    T({id:'T-002', hallazgo:'H-010', titulo:'Resanar fisuras del piso en zona de carga', desc:'Resanar las fisuras con mortero epóxico. Mantener la zona señalizada hasta el secado completo.', area:'mantenimiento', puesto:'P6', creada:dAgo(8), limite:dIn(1), estado:'en_proceso', escena:'resane',
+      pasos:[step('Delimitar y señalizar la zona',true,'cinta','Zona delimitada con conos y cinta. Se desvió el tránsito de transpaletas por el lado sur.',2,'Carlos Mendoza'),step('Resanar fisuras con mortero epóxico'),step('Retirar la señalización tras el secado')],
+      hist:[h(dAgo(8), ...ANA, 'Creó la tarea y la asignó a Carlos Mendoza'),h(dAgo(7), ...CAR, 'Aceptó la tarea'),h(dAgo(2), ...CAR, 'Completó el paso 1 con evidencia')]}),
+    T({id:'T-003', hallazgo:'H-011', titulo:'Comprar e instalar señales de ruta de evacuación', desc:'Adquirir 12 señales fotoluminiscentes de ruta de evacuación y coordinar su instalación según el plano actualizado.', area:'administracion', puesto:'P7', creada:dAgo(12), limite:dIn(2), estado:'por_validar', escena:'senal',
+      pasos:[step('Cotizar con dos proveedores',true,'doc','Se cotizó con Señalética Lima y Seguridad Total. Se eligió la segunda por menor plazo de entrega.',9,'Rosa Chávez'),step('Emitir la orden de compra',true,'doc','Orden de compra OC-2026-0418 aprobada por gerencia.',6,'Rosa Chávez'),step('Coordinar la instalación',true,'senal','El proveedor instaló las 12 señales el jueves. Se adjunta foto del pasillo central.',1,'Rosa Chávez')],
+      hist:[h(dAgo(12), ...ANA, 'Creó la tarea y la asignó a Rosa Chávez'),h(dAgo(11), ...ROS, 'Aceptó la tarea'),h(dAgo(9), ...ROS, 'Completó el paso 1 con evidencia'),h(dAgo(6), ...ROS, 'Completó el paso 2 con evidencia'),h(dAgo(1), ...ROS, 'Completó el paso 3 con evidencia'),h(dAgo(0.9), ...ROS, 'Marcó la tarea como terminada')]}),
+    T({id:'T-004', hallazgo:'H-012', titulo:'Contratar la recarga de extintores CO2', desc:'Contratar el servicio de recarga de los dos extintores de CO2 de 5 kg y gestionar extintores de reemplazo mientras dure el servicio.', area:'administracion', puesto:'P7', creada:dAgo(5), limite:dIn(1), estado:'modificacion', escena:'extintor',
+      pasos:[step('Solicitar cotización del servicio'),step('Emitir la orden de servicio'),step('Recibir los extintores recargados')],
+      mod:{tipo:'Plazo', nuevaFecha:dIn(10), motivo:'El proveedor habitual tiene carga de CO2 recién para la próxima semana. Otro proveedor cobra el doble.', fecha:dAgo(0.3)},
+      hist:[h(dAgo(5), ...ANA, 'Creó la tarea y la asignó a Rosa Chávez'),h(dAgo(0.3), ...ROS, 'Solicitó modificación de plazo')]}),
+    T({id:'T-005', hallazgo:'H-008', titulo:'Reponer insumos del botiquín de despacho', desc:'Comprar gasas, vendas y alcohol para completar el botiquín.', area:'administracion', puesto:'P7', creada:dAgo(45), limite:dIn(-40), estado:'cerrada', escena:'botiquin', cerrada:dAgo(41),
+      pasos:[step('Comprar insumos',true,'doc','Compra en farmacia con caja chica.',43,'Rosa Chávez'),step('Reponer el botiquín',true,'botiquin','Botiquín completo según lista de verificación.',42,'Rosa Chávez')],
+      hist:[h(dAgo(45), ...ANA, 'Creó la tarea'),h(dAgo(42), ...ROS, 'Marcó la tarea como terminada'),h(dAgo(41), ...ANA, 'Validó y cerró la tarea')]}),
+    T({id:'T-006', hallazgo:'H-007', titulo:'Instalar alarma de retroceso en montacargas 02', desc:'Instalar alarma sonora de retroceso y probarla.', area:'mantenimiento', puesto:'P6', creada:dAgo(60), limite:dIn(-52), estado:'cerrada', escena:'trabajo', cerrada:dAgo(52),
+      pasos:[step('Instalar la alarma',true,'trabajo','Alarma de 97 dB instalada.',54,'Carlos Mendoza'),step('Probar en retroceso',true,'trabajo','Prueba conforme con el operador.',53,'Carlos Mendoza')],
+      hist:[h(dAgo(60), ...ANA, 'Creó la tarea'),h(dAgo(53), ...CAR, 'Marcó la tarea como terminada'),h(dAgo(52), ...ANA, 'Validó y cerró la tarea')]}),
+    T({id:'T-007', hallazgo:'H-005', titulo:'Aislar conductor y cerrar tablero del patio', desc:'Aislar el conductor expuesto y colocar candado en el tablero.', area:'mantenimiento', puesto:'P6', creada:dAgo(80), limite:dIn(-77), estado:'cerrada', escena:'cable', cerrada:dAgo(77),
+      pasos:[step('Aislar el conductor',true,'cable','Conductor reemplazado.',78,'Carlos Mendoza'),step('Colocar candado',true,'trabajo','Candado instalado; llave en mantenimiento.',78,'Carlos Mendoza')],
+      hist:[h(dAgo(80), ...ANA, 'Creó la tarea'),h(dAgo(78), ...CAR, 'Marcó la tarea como terminada'),h(dAgo(77), ...ANA, 'Validó y cerró la tarea')]})
+  ];
+
+  const inventario = [
+    ['casco','EPP','Casco de seguridad',12,5],['guantes','EPP','Guantes anticorte (par)',30,10],['lentes','EPP','Lentes de seguridad',4,6],
+    ['zap42','EPP','Zapatos de seguridad talla 42',0,3],['zap40','EPP','Zapatos de seguridad talla 40',5,3],['chaleco','EPP','Chaleco reflectivo',15,5],
+    ['tapones','EPP','Tapones auditivos (par)',50,20],['arnes','EPP','Arnés de seguridad',3,2],
+    ['pqs','Extintores','Extintor PQS 6 kg',8,6],['co2','Extintores','Extintor CO2 5 kg',2,2],
+    ['salida','Señalización','Señal de salida',10,4],['electrico','Señalización','Señal de riesgo eléctrico',3,3],['ruta','Señalización','Señal de ruta de evacuación',14,8],
+    ['botiquin','Botiquines','Botiquín completo',4,3],['gasas','Botiquines','Paquete de gasas estériles',6,10],
+    ['luzled','Luces de emergencia','Luz de emergencia LED',5,4]
+  ].map(([id,cat,nombre,stock,min]) => ({id,cat,nombre,stock,min,mov:[]}));
+
+  const E = (id, puesto, item, motivo, desc, dias, estado, extra) => {
+    const fecha = dAgo(dias);
+    const pp = puestos.find(p=>p.id===puesto);
+    return Object.assign({id, puesto, persona:{nombre:pp.persona.nombre, dni:pp.persona.dni}, item, motivo, desc, fecha, estado, foto:photo(ITEM_SCENE[item]||'generic', id + ', ' + fmtD(fecha)), espera:null, rechazo:'', entrega:null,
+      hist:[{f:fecha, quien:pp.persona.nombre, puesto:pp.nombre, t:'Envió la solicitud'}]}, extra||{});
+  };
+  const epp = [
+    E('E-001','P1','guantes','Desgaste por uso','Los guantes tienen la palma rota y ya no protegen al manipular flejes.',20,'entregada',{entrega:{fecha:dAgo(18), devuelto:true}}),
+    E('E-002','P1','zap42','Rotura o daño','La suela del zapato derecho se despegó en la punta.',4,'en_espera',{espera:dIn(5)}),
+    E('E-003','P2','casco','Rotura o daño','El casco tiene una fisura en la parte superior después de un golpe con un rack.',0.15,'enviada'),
+    E('E-004','P3','lentes','Desgaste por uso','Las lunas están rayadas y no se ve bien al leer etiquetas.',1,'enviada'),
+    E('E-005','P4','chaleco','Desgaste por uso','El chaleco perdió las cintas reflectivas de la espalda.',2,'aprobada'),
+    E('E-006','P2','tapones','Pérdida','Perdí los tapones en el comedor.',10,'rechazada',{rechazo:'Los tapones están disponibles en el dispensador del ingreso; no requieren solicitud.'})
+  ];
+  const sstH = (r, d, t) => r.hist.push({f:dAgo(d), quien:'Ana Torres', puesto:'Jefa de SST', t});
+  sstH(epp[0],19,'Aprobó la solicitud'); sstH(epp[0],18,'Marcó como entregada; EPP anterior devuelto y formato firmado');
+  sstH(epp[1],3.5,'Puso la solicitud en espera hasta el ' + fmtD(dIn(5)) + ' por falta de stock');
+  sstH(epp[4],1.5,'Aprobó la solicitud');
+  sstH(epp[5],9.5,'Rechazó la solicitud');
+
+  const B = (id, tipo, titulo, codigo, resumen, cuerpo, dias) => ({id, tipo, titulo, codigo, resumen, cuerpo, fecha:dAgo(dias), img:null});
+  const biblioteca = [
+    B('B-001','Afiche','Uso obligatorio de EPP en zona de carga','', 'Casco, chaleco reflectivo, zapatos de seguridad y guantes en todo momento.', ['En la zona de carga circulan montacargas y transpaletas de forma continua. Todo el personal que ingrese debe usar casco, chaleco reflectivo, zapatos con puntera de acero y guantes.','Si tu EPP está dañado, solicita el cambio desde la plataforma antes de ingresar.'],40),
+    B('B-002','Procedimiento','Evacuación ante sismos','PR-SST-004','Pasos para evacuar el almacén y llegar al punto de reunión.',['Al iniciar el sismo, aléjate de racks y ventanas y ubícate en una zona segura señalizada.','Cuando termine, evacúa por la ruta señalizada sin correr y sin usar el montacargas.','Dirígete al punto de reunión del patio de maniobras y repórtate con tu supervisor.'],120),
+    B('B-003','Instructivo','Uso correcto del extintor PQS','IN-SST-011','Cómo usar el extintor en cuatro pasos.',['Retira el pasador de seguridad.','Apunta la boquilla a la base del fuego, a unos 2 a 3 metros.','Presiona la manija de forma continua.','Barre de lado a lado hasta apagar el fuego y avisa a SST para su recarga.'],75),
+    B('B-004','Flyer','Levantamiento seguro de cargas','','Dobla las rodillas, no la espalda. Pide ayuda con cargas de más de 25 kg.',['Acércate a la carga y separa los pies al ancho de los hombros.','Dobla las rodillas, mantén la espalda recta y levanta con las piernas.','No gires el tronco con la carga; mueve los pies.','Si la carga supera los 25 kg, pide ayuda o usa una transpaleta.'],30),
+    B('B-005','Procedimiento','Operación segura de montacargas','PR-SST-007','Inspección previa, velocidad máxima y prioridad peatonal.',['Antes de cada turno, completa el check list de inspección del montacargas.','La velocidad máxima dentro del almacén es de 10 km/h.','El peatón siempre tiene prioridad; toca la bocina en cruces y esquinas.'],160),
+    B('B-006','Afiche','Mantén los pasadizos libres','','Las rutas de evacuación deben estar despejadas siempre.',['No dejes parihuelas, cajas ni stretch film en los pasadizos marcados con línea amarilla.'],12)
+  ];
+
+  const internas = [
+    {id:'I-001', titulo:'Inspección mensual de extintores', resp:'Ana Torres', fecha:dIn(5), estado:'pendiente'},
+    {id:'I-002', titulo:'Capacitación sobre uso y cuidado de EPP', resp:'Ana Torres', fecha:dIn(12), estado:'pendiente'},
+    {id:'I-003', titulo:'Actualizar el mapa de riesgos del almacén B', resp:'Ana Torres', fecha:dIn(20), estado:'curso'},
+    {id:'I-004', titulo:'Revisar la matriz IPERC', resp:'Ana Torres', fecha:dIn(30), estado:'pendiente'},
+    {id:'I-005', titulo:'Simulacro de sismo del segundo semestre', resp:'Ana Torres', fecha:dAgo(7), estado:'hecha'}
+  ];
+
+  const N = (to, puesto, text, ref, dias, icon) => ({id:'N'+Math.random().toString(36).slice(2,9), to, puesto, text, ref, fecha:dAgo(dias), read:false, icon});
+  const notifs = [
+    N('sst',null,'Pedro Huamán solicitó cambio de Casco de seguridad (E-003).',{t:'epp',id:'E-003'},0.15,'helmet'),
+    N('sst',null,'Rosa Chávez solicitó más plazo para T-004.',{t:'tarea',id:'T-004'},0.3,'clock'),
+    N('sst',null,'Rosa Chávez terminó T-003. Revisa la evidencia para cerrarla.',{t:'tarea',id:'T-003'},0.9,'clip'),
+    N('sst',null,'María Flores solicitó cambio de Lentes de seguridad (E-004).',{t:'epp',id:'E-004'},1,'helmet'),
+    N('sst',null,'Kevin Salazar se registró con DNI y espera asignación de puesto.',{t:'puestos',id:''},1,'users'),
+    N('sst',null,'Stock bajo: Lentes de seguridad (4 en stock, mínimo 6).',{t:'inv',id:'lentes'},2,'box'),
+    N('mantenimiento','P6','Ana Torres te asignó T-001: Reparar luz de emergencia del pasillo 3.',{t:'tarea',id:'T-001'},2,'clip'),
+    N('trabajador','P1','Tu solicitud E-002 quedó en espera. Fecha estimada de cambio: ' + fmtD(dIn(5)) + '.',{t:'epp',id:'E-002'},3.5,'pause'),
+    N('trabajador','P4','Tu solicitud E-005 fue aprobada. Acércate a SST para la entrega.',{t:'epp',id:'E-005'},1.5,'check')
+  ];
+
+  const A = (from, to, text, dias) => ({id:'A'+Math.random().toString(36).slice(2,9), from, to, text, fecha:dAgo(dias)});
+  const activity = [
+    A('trabajador','sst','Pedro Huamán solicitó cambio de Casco de seguridad (E-003).',0.15),
+    A('administracion','sst','Rosa Chávez pidió ampliar el plazo de T-004 hasta el ' + fmtD(dIn(10)) + '.',0.3),
+    A('administracion','sst','Rosa Chávez marcó T-003 como terminada y la envió a validación.',0.9),
+    A('trabajador','sst','María Flores solicitó cambio de Lentes de seguridad (E-004).',1),
+    A('sst','trabajador','Ana Torres aprobó la solicitud E-005 de Jorge Ramos.',1.5),
+    A('mantenimiento','sst','Carlos Mendoza completó el paso 1 de T-002 con evidencia.',2),
+    A('sst','mantenimiento','Ana Torres asignó T-001 a Carlos Mendoza a partir del hallazgo H-009.',2),
+    A('sst','trabajador','Ana Torres puso en espera la solicitud E-002 de Luis Quispe por falta de stock.',3.5),
+    A('sst','administracion','Ana Torres asignó T-004 a Rosa Chávez a partir del hallazgo H-012.',5),
+    A('sst','mantenimiento','Ana Torres asignó T-002 a Carlos Mendoza a partir del hallazgo H-010.',8)
+  ];
+
+  return {v:2, puestos, personas, hallazgos, tareas, epp, inventario, biblioteca, internas, notifs, activity,
+    seq:{H:14, T:7, E:6, B:6, I:5}, actSeen:0};
+}
+
+/* ===================== Estado ===================== */
+const KEY = 'sstmvp:v1';
+let S, cur = null;
+const DEF_V = () => ({trabajador:{p:'inicio'}, sst:{p:'dashboard'}, mantenimiento:{p:'tablero'}, administracion:{p:'tablero'}});
+let V = DEF_V();
+const UI = {hf:{estado:'',riesgo:'',area:'',resp:'',q:''}, tTab:'todas', eTab:'enviada', invTab:'Todos', libTab:'Todos', drawer:false, loginPick:null, photos:{}, stepScene:'trabajo'};
+const demoPuesto = {trabajador:'P1', sst:'P5', mantenimiento:'P6', administracion:'P7'};
+const ROLEX = Object.assign({}, ROLES, {nuevo:{label:'Nuevo usuario', c:'var(--muted)', icon:'users'}});
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const o = JSON.parse(raw); if (o && o.state && o.state.v === 2) { S = o.state; cur = o.cur || null; V = Object.assign(DEF_V(), o.V || {}); return; } }
+  } catch (e) {}
+  S = seed();
+}
+let warned = false;
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify({state:S, cur, V})); }
+  catch (e) { if (!warned) { warned = true; toast('Este navegador no guarda los cambios; durarán hasta recargar la página.'); } }
+}
+function commit() { persist(); render(); }
+
+/* ===================== Helpers de dominio ===================== */
+const $ = (s) => document.querySelector(s);
+const val = (s) => { const el = $(s); return el ? el.value.trim() : ''; };
+const rid = () => Math.random().toString(36).slice(2, 9);
+const nextId = (k) => k + '-' + String(++S.seq[k]).padStart(3, '0');
+const P = (id) => S.puestos.find(p => p.id === id);
+const H = (id) => S.hallazgos.find(x => x.id === id);
+const T = (id) => S.tareas.find(x => x.id === id);
+const E = (id) => S.epp.find(x => x.id === id);
+const item = (id) => S.inventario.find(i => i.id === id) || {nombre:'EPP', stock:0, min:0, id};
+const me = () => P(cur.puesto);
+const meName = () => me().persona.nombre;
+const first = (n) => n.split(' ')[0];
+function addHist(o, t) { const p = me(); o.hist.push({f:now(), quien:p.persona.nombre, puesto:p.nombre, t}); }
+function notify(to, puesto, text, ref, icon) { S.notifs.unshift({id:'N'+rid(), to, puesto:puesto||null, text, ref, fecha:now(), read:false, icon}); }
+function act(from, to, text) { S.activity.unshift({id:'A'+rid(), from, to, text, fecha:now()}); }
+const myNotifs = () => S.notifs.filter(n => n.to === cur.role && (!n.puesto || n.puesto === cur.puesto)).sort((a,b) => b.fecha - a.fecha);
+const myTasks = () => S.tareas.filter(t => t.area === cur.role && t.puesto === cur.puesto);
+
+const HST = {registrado:['Registrado','info'], en_atencion:['En atención','warn'], cerrado:['Cerrado','ok'], descartado:['Descartado','']};
+const TST = {asignada:['Por aceptar','info'], modificacion:['Modificación solicitada','warn'], en_proceso:['En proceso','info'], devuelta:['Devuelta','bad'], por_validar:['Por validar','warn'], cerrada:['Cerrada','ok']};
+const EST = {enviada:['Enviada','info'], aprobada:['Aprobada','ok'], en_espera:['En espera','warn'], rechazada:['Rechazada','bad'], entregada:['Entregada','ok']};
+const chip = (m, k) => { const [t, c] = m[k]; return `<span class="chip ${c}"><span class="d"></span>${t}</span>`; };
+const riskTag = (r) => `<span class="risk" style="--c:${RC[r]}"><i></i>${r}</span>`;
+const roleChip = (r) => `<span class="rchip" style="--c:${ROLEX[r].c}">${ROLEX[r].label}</span>`;
+function sem(t) {
+  if (t.estado === 'cerrada') return {c:'ok', t:'Cerrada el ' + fmtD(t.cerrada)};
+  const d = daysLeft(t.limite);
+  if (d < 0) return {c:'bad', t:`Vencida hace ${-d} ${-d === 1 ? 'día' : 'días'}`};
+  if (d === 0) return {c:'warn', t:'Vence hoy'};
+  if (d === 1) return {c:'warn', t:'Vence mañana'};
+  if (d === 2) return {c:'warn', t:'Vence en 2 días'};
+  return {c:'ok', t:'Vence el ' + fmtD(t.limite)};
+}
+const semChip = (t) => { const s = sem(t); return `<span class="chip ${s.c}">${ic('clock')}${s.t}</span>`; };
+const prog = (t) => { const d = t.pasos.filter(s => s.done).length, n = t.pasos.length; return `<div class="prog"><div class="t"><span style="width:${n ? d/n*100 : 0}%"></span></div>${d}/${n}</div>`; };
+const stockState = (i) => i.stock === 0 ? ['Sin stock','bad'] : (i.stock <= i.min ? ['Bajo mínimo','warn'] : ['Disponible','ok']);
+const banner = (cls, icon, title, text, acts) => `<div class="banner ${cls}">${ic(icon)}<div><b>${title}</b>${text ? `<span class="small">${text}</span>` : ''}</div>${acts ? `<div class="acts">${acts}</div>` : ''}</div>`;
+const histList = (hs) => `<ul class="hist">${hs.slice().sort((a,b) => b.f - a.f).map(x => `<li>${esc(x.t)}<small>${esc(x.quien)}, ${esc(x.puesto)}. ${fmtDT(x.f)}</small></li>`).join('')}</ul>`;
+const emptyBox = (t, s) => `<div class="empty"><b>${t}</b>${s || ''}</div>`;
+const libIcon = (b) => { const t = (b.titulo + ' ' + b.resumen).toLowerCase(); if (t.includes('epp') || t.includes('casco')) return 'helmet'; if (t.includes('montacargas')) return 'forklift'; if (t.includes('extintor') || t.includes('fuego')) return 'fire'; if (t.includes('carga') && t.includes('levant')) return 'hands'; if (t.includes('evacu') || t.includes('sismo') || t.includes('pasadizo')) return 'run'; return b.tipo === 'Instructivo' ? 'alert' : 'shield'; };
+const libShape = (tipo) => tipo === 'Instructivo' ? 'tri' : (tipo === 'Afiche' ? 'circle' : 'sq');
+const libThumb = (b) => b.img ? `<img src="${b.img}" alt="">` : `<span class="sign ${libShape(b.tipo)}">${ic(libIcon(b))}</span>`;
+const HAL_SCENE = {'Orden y limpieza':'aceite','Almacenamiento y estanterías':'rack','Equipos de emergencia':'extintor','Señalización':'senal','Instalaciones eléctricas':'cable','Uso de EPP':'casco','Tránsito de montacargas':'generic','Infraestructura':'piso'};
+
+/* ===================== Render raíz ===================== */
+let lastKey = '';
+const pageKey = () => cur ? cur.role + ':' + V[cur.role].p + ':' + (V[cur.role].id || '') : 'login';
+function render() {
+  document.body.dataset.role = cur ? cur.role : 'sst';
+  const root = document.getElementById('root');
+  const key = pageKey();
+  const m0 = document.querySelector('.main');
+  const sc = m0 && key === lastKey ? m0.scrollTop : 0;
+  if (!cur) {
+    root.innerHTML = `<div class="shell">${demobar()}<div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column">${loginView()}</div></div>`;
+  } else {
+    root.innerHTML = `<div class="shell">${demobar()}<div class="app"><aside class="side">${sidebar()}</aside><main class="main" id="main"><div class="page">${pageView()}</div></main></div></div>`;
+    const m = document.querySelector('.main'); if (m) m.scrollTop = sc;
+  }
+  lastKey = key;
+  renderDrawer();
+}
+
+function demobar() {
+  const n = Math.max(0, S.activity.length - S.actSeen);
+  return `<header class="demobar"><span class="tag">Modo demo</span><span class="lbl">Ver como</span>
+  <div class="rolesw" role="group" aria-label="Cambiar de rol">${Object.entries(ROLES).map(([k, r]) => `<button data-a="switch" data-v="${k}" aria-pressed="${!!cur && cur.role === k}"><span class="dot" style="background:${r.c}"></span>${r.label}</button>`).join('')}</div>
+  <span class="sp"></span>
+  <button class="dbtn" data-a="tour">${ic('route')}Recorrido</button>
+  <button class="dbtn" data-a="drawer">${ic('activity')}Actividad entre roles${n > 0 ? `<span class="cnt">${n}</span>` : ''}</button>
+  <button class="dbtn" data-a="reset">${ic('refresh')}Reiniciar demo</button></header>`;
+}
+
+function navItems() {
+  const un = myNotifs().filter(n => !n.read).length;
+  if (cur.role === 'trabajador') return [['inicio','Inicio','home'],['solicitar','Solicitar EPP','helmet'],['mis','Mis solicitudes','clip'],['biblio','Biblioteca','book'],['notifs','Notificaciones','bell',un]];
+  if (cur.role === 'sst') return [
+    ['dashboard','Dashboard','chart'],
+    ['hallazgos','Hallazgos','alert', S.hallazgos.filter(h => h.estado === 'registrado').length],
+    ['tareas','Tareas a áreas','clip', S.tareas.filter(t => ['modificacion','por_validar'].includes(t.estado)).length],
+    ['epp','Solicitudes de EPP','helmet', S.epp.filter(e => e.estado === 'enviada').length],
+    ['inventario','Inventario','box', S.inventario.filter(i => i.stock <= i.min).length],
+    ['internas','Tareas internas','check'],
+    ['biblio','Biblioteca','book'],
+    ['puestos','Puestos y usuarios','users', S.personas.length],
+    ['notifs','Notificaciones','bell',un]];
+  return [['tablero','Mis tareas','clip', myTasks().filter(t => ['asignada','devuelta'].includes(t.estado)).length],['notifs','Notificaciones','bell',un]];
+}
+function sidebar() {
+  const p = me(), r = ROLES[cur.role];
+  const curP = V[cur.role].p;
+  const active = curP === 'hallazgo' ? 'hallazgos' : curP === 'tarea' ? (cur.role === 'sst' ? 'tareas' : 'tablero') : curP;
+  return `<div class="brand"><span class="mark">${ic(r.icon)}</span><div><b>SST Almacén</b><small>Vista ${cur.role === 'trabajador' ? 'usuario' : 'administrativa'}</small></div></div>
+  <div class="who"><span class="r">${r.label}</span><div class="n">${esc(p.persona.nombre)}</div><div class="p">${esc(p.nombre)}</div><div class="p">DNI ${esc(p.persona.dni)}</div></div>
+  <nav class="nav" aria-label="Menú">${navItems().map(([k, l, i, b]) => `<button data-a="go" data-v="${k}" ${active === k ? 'aria-current="page"' : ''}>${ic(i)}${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('')}</nav>
+  <div class="foot"><button class="btn ghost sm" data-a="logout">${ic('logout')}Cerrar sesión</button></div>`;
+}
+function pageView() {
+  const v = V[cur.role];
+  const map = cur.role === 'trabajador' ? {inicio:pTrabInicio, solicitar:pSolicitar, mis:pMis, biblio:pBiblio, notifs:pNotifs}
+    : cur.role === 'sst' ? {dashboard:pDash, hallazgos:pHallazgos, hallazgo:pHallazgo, tareas:pTareas, tarea:pTarea, epp:pEpp, inventario:pInv, internas:pInternas, biblio:pBiblio, puestos:pPuestos, notifs:pNotifs}
+    : {tablero:pTablero, tarea:pTarea, notifs:pNotifs};
+  const fn = map[v.p] || Object.values(map)[0];
+  return fn(v.id);
+}
+function go(p, id) { V[cur.role] = {p, id}; if (p === 'solicitar') UI.photos = {}; lastKey = ''; commit(); }
+
+/* ===================== Login y registro ===================== */
+const TOUR = [
+  ['trabajador','Trabajador','solicita el cambio de un EPP con foto.'],
+  ['sst','SST','aprueba la solicitud y la marca como entregada; el stock se descuenta.'],
+  ['sst','SST','registra un hallazgo y le asigna una tarea a Mantenimiento.'],
+  ['mantenimiento','Mantenimiento','acepta la tarea y completa cada paso con evidencia.'],
+  ['sst','SST','valida la evidencia, cierra la tarea y luego el hallazgo.'],
+  [null,'Todos','abren “Actividad entre roles” para ver el recorrido completo.']
+];
+function loginView() {
+  const sel = UI.loginPick;
+  return `<div class="login"><section class="left">
+    <div class="brand" style="padding:0"><span class="mark" style="background:#F2C200;color:#1C2529">${ic('shield')}</span><div><b>SST Almacén</b><small style="color:#9FB0AB">Seguridad y salud en el trabajo</small></div></div>
+    <h1>La seguridad del almacén en un solo lugar.</h1>
+    <p>Trabajadores, SST y las áreas de apoyo trabajan sobre la misma información: solicitudes de EPP, hallazgos y tareas con evidencia hasta su cierre.</p>
+    <div class="tour"><h3>Recorrido sugerido para la demo</h3><ol>${TOUR.map(t => `<li><span><b>${t[1]}</b> ${t[2]}</span></li>`).join('')}</ol></div>
+  </section>
+  <section class="right"><h2>Ingresar</h2><p class="muted">Elige un perfil de prueba o ingresa con tu DNI.</p>
+    <div class="picks">${Object.entries(demoPuesto).map(([r, pid]) => { const p = P(pid); return `<button class="pick" style="--c:${ROLES[r].c}" data-a="pick" data-v="${r}" aria-pressed="${sel === r}"><span class="ic">${ic(ROLES[r].icon)}</span><span><b>${ROLES[r].label}</b><span>${esc(p.persona.nombre)}</span><span>${esc(p.nombre)}</span></span></button>`; }).join('')}</div>
+    <div class="or">o con tu DNI</div>
+    <div class="field"><label for="l-dni">DNI</label><input class="inp" id="l-dni" inputmode="numeric" maxlength="8" autocomplete="off" value="${sel ? P(demoPuesto[sel]).persona.dni : ''}" placeholder="8 dígitos"></div>
+    <div class="field"><label for="l-pw">Contraseña</label><input class="inp" id="l-pw" type="password" value="${sel ? 'demo1234' : ''}" placeholder="Tu contraseña"><span class="hint">En la demo cualquier contraseña funciona.</span></div>
+    <div id="l-err"></div>
+    <button class="btn primary" style="width:100%;justify-content:center;padding:11px" data-a="login">Ingresar</button>
+    <p class="small muted" style="margin-top:14px;text-align:center">¿Primera vez? <button class="btn ghost sm" data-a="register">Regístrate con tu DNI</button></p>
+  </section></div>`;
+}
+function doLogin() {
+  const dni = val('#l-dni'), pw = val('#l-pw');
+  const errEl = $('#l-err');
+  const show = (m) => { errEl.innerHTML = banner('bad', 'alert', m, ''); };
+  if (!/^\d{8}$/.test(dni)) return show('Ingresa un DNI de 8 dígitos.');
+  if (!pw) return show('Ingresa tu contraseña.');
+  const p = S.puestos.find(x => x.persona.dni === dni);
+  if (!p) {
+    if (S.personas.some(x => x.dni === dni)) return show('Tu registro está pendiente: SST aún no te asigna un puesto.');
+    return show('No encontramos ese DNI. Revisa el número o regístrate.');
+  }
+  cur = {role:p.rol, puesto:p.id}; UI.loginPick = null; lastKey = ''; commit();
+}
+function registerModal() {
+  modal('Registro con DNI', `<p class="muted small" style="margin-bottom:14px">Todo el personal, operativo y administrativo, se registra con su DNI. SST te asignará al puesto que ocupas.</p>
+  <div class="grid g2"><div class="field"><label for="r-dni">DNI</label><input class="inp" id="r-dni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"></div>
+  <div class="field"><label for="r-nom">Nombres y apellidos</label><input class="inp" id="r-nom"></div>
+  <div class="field"><label for="r-mail">Correo</label><input class="inp" id="r-mail" type="email" placeholder="Cualquier correo personal"></div>
+  <div class="field"><label for="r-cel">Celular</label><input class="inp" id="r-cel" inputmode="tel" placeholder="9 dígitos"></div>
+  <div class="field"><label for="r-tipo">Tipo de área</label><select class="inp" id="r-tipo"><option>Operativa</option><option>Administrativa</option></select></div>
+  <div class="field"><label for="r-area">Área</label><select class="inp" id="r-area">${['Almacén A','Almacén B','Zona de carga','Patio de maniobras','Administración','Contabilidad','Calidad','Comercial','Mantenimiento','SST'].map(a => `<option>${a}</option>`).join('')}</select></div>
+  <div class="field"><label for="r-pw">Contraseña</label><input class="inp" id="r-pw" type="password"></div></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="registerSave">Registrarme</button>`, true);
+}
+function registerSave() {
+  const dni = val('#r-dni'), nom = val('#r-nom'), mail = val('#r-mail'), cel = val('#r-cel'), pw = val('#r-pw');
+  if (!/^\d{8}$/.test(dni)) return mErr('El DNI debe tener 8 dígitos.');
+  if (S.puestos.some(p => p.persona.dni === dni) || S.personas.some(p => p.dni === dni)) return mErr('Ese DNI ya está registrado.');
+  if (!nom || !mail || !cel || !pw) return mErr('Completa todos los campos.');
+  S.personas.push({dni, nombre:nom, correo:mail, celular:cel, tipo:val('#r-tipo'), area:val('#r-area'), fecha:now()});
+  notify('sst', null, `${nom} se registró con DNI y espera asignación de puesto.`, {t:'puestos'}, 'users');
+  act('nuevo', 'sst', `${nom} se registró con DNI ${dni} y espera que SST le asigne un puesto.`);
+  closeModal(); commit(); toast('Registro enviado. SST te asignará a tu puesto.');
+}
+
+/* ===================== Trabajador ===================== */
+function pTrabInicio() {
+  const mine = S.epp.filter(e => e.puesto === cur.puesto).sort((a,b) => b.fecha - a.fecha);
+  const libs = S.biblioteca.slice().sort((a,b) => b.fecha - a.fecha).slice(0, 3);
+  return `<div class="phead"><div><h1>Hola, ${esc(first(meName()))}</h1><p>Desde aquí pides el cambio de tu EPP y consultas los materiales de seguridad del almacén.</p></div></div>
+  <div class="hello"><button class="cta" data-a="go" data-v="solicitar"><span class="sign circle">${ic('helmet')}</span><span><h2>Solicitar cambio de EPP</h2><p>Toma una foto del EPP dañado y cuéntanos qué pasó. SST te responde aquí mismo.</p></span></button>
+  <div class="card"><div class="chead"><h2>Tus solicitudes</h2><span class="sp"></span><button class="btn sm ghost" data-a="go" data-v="mis">Ver todas</button></div>
+  ${mine.slice(0, 3).map(e => `<div class="mini" role="button" tabindex="0" data-a="eppView" data-id="${e.id}" style="cursor:pointer"><div style="flex:1"><b style="font-weight:600">${esc(item(e.item).nombre)}</b><div class="small muted">${e.id}, ${fmtD(e.fecha)}</div></div>${chip(EST, e.estado)}</div>`).join('') || emptyBox('Aún no tienes solicitudes', 'Cuando pidas un EPP, verás su estado aquí.')}</div></div>
+  <div class="card"><div class="chead"><h2>Novedades de la biblioteca</h2><span class="sp"></span><button class="btn sm ghost" data-a="go" data-v="biblio">Abrir biblioteca</button></div>
+  ${libs.map(b => `<div class="mini" role="button" tabindex="0" data-a="libOpen" data-id="${b.id}" style="cursor:pointer"><span class="rchip" style="--c:${LIBC[b.tipo]}">${b.tipo}</span><b style="font-weight:600;flex:1">${esc(b.titulo)}</b><span class="small muted">${fmtD(b.fecha)}</span></div>`).join('')}</div>`;
+}
+function photoField(key, opts) {
+  opts = opts || {};
+  const v = UI.photos[key];
+  return `<div class="photo-drop"><div data-pv="${key}">${v ? `<img src="${v}" alt="Vista previa de la foto">` : `<div class="ph">${ic('camera')}</div>`}</div>
+  <div class="row wrap"><label class="btn sm">${ic('camera')}Subir foto<input type="file" accept="image/*" data-file="${key}" hidden></label>${opts.noSample ? '' : `<button type="button" class="btn sm ghost" data-a="samplePhoto" data-v="${key}">Usar foto de ejemplo</button>`}<span class="small muted" style="width:100%">${opts.hint || 'En el celular se abre la cámara.'}</span></div></div>`;
+}
+function pSolicitar() {
+  const items = S.inventario.filter(i => i.cat === 'EPP');
+  return `<div class="phead"><div><h1>Solicitar cambio de EPP</h1><p>Completa los datos y adjunta una foto del EPP que necesitas cambiar.</p></div></div>
+  <div class="grid g-main"><div class="card pad">
+    <div class="field"><label for="s-item">EPP que necesitas</label><select class="inp" id="s-item"><option value="">Elige el EPP</option>${items.map(i => `<option value="${i.id}">${esc(i.nombre)}</option>`).join('')}</select></div>
+    <div class="field"><label for="s-mot">Motivo</label><select class="inp" id="s-mot"><option value="">Elige el motivo</option>${MOTIVOS.map(m => `<option>${m}</option>`).join('')}</select></div>
+    <div class="field"><label for="s-desc">Describe qué pasó</label><textarea class="inp" id="s-desc" placeholder="Ejemplo: la suela del zapato se despegó en la punta."></textarea></div>
+    <div class="field"><label>Foto del EPP</label>${photoField('sol')}</div>
+    <div id="m-err"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" data-a="solSend">${ic('send')}Enviar solicitud</button></div>
+  </div>
+  <div class="card pad" style="align-self:start"><h2 style="margin-bottom:12px">Qué pasa después</h2>
+    <ol class="steps">${['SST revisa tu solicitud y la aprueba, la rechaza o la pone en espera si no hay stock.','Te avisamos aquí cada vez que cambie su estado.','Recoges tu EPP en SST: devuelves el anterior y firmas el formato de entrega.'].map((t, i) => `<li class="step" style="grid-template-columns:30px 1fr;padding:10px 0"><span class="num">${i+1}</span><div class="small">${t}</div></li>`).join('')}</ol>
+  </div></div>`;
+}
+function solSend() {
+  const it = val('#s-item'), mot = val('#s-mot'), desc = val('#s-desc'), foto = UI.photos.sol;
+  if (!it) return mErr('Elige el EPP que necesitas.');
+  if (!mot) return mErr('Elige el motivo.');
+  if (!desc) return mErr('Describe brevemente qué pasó.');
+  if (!foto) return mErr('Adjunta una foto del EPP.');
+  const p = me(), id = nextId('E');
+  S.epp.push({id, puesto:p.id, persona:{nombre:p.persona.nombre, dni:p.persona.dni}, item:it, motivo:mot, desc, fecha:now(), estado:'enviada', foto, espera:null, rechazo:'', entrega:null, hist:[{f:now(), quien:p.persona.nombre, puesto:p.nombre, t:'Envió la solicitud'}]});
+  notify('sst', null, `${p.persona.nombre} solicitó cambio de ${item(it).nombre} (${id}).`, {t:'epp', id}, 'helmet');
+  act('trabajador', 'sst', `${p.persona.nombre} solicitó cambio de ${item(it).nombre} (${id}).`);
+  UI.photos = {};
+  V.trabajador = {p:'mis'};
+  commit(); toast(`Solicitud <em>${id}</em> enviada a SST.`);
+}
+function eppTrack(e) {
+  const s = e.estado;
+  const mid = s === 'en_espera' ? ['En espera','var(--medio)','clock'] : s === 'rechazada' ? ['Rechazada','var(--alto)','x'] : ['Aprobada',null,'check'];
+  const on2 = s !== 'enviada', on3 = s === 'entregada';
+  const node = (on, txt, c, icon) => `<span class="s ${on ? 'on' : ''}" ${c ? `style="--c:${c}"` : ''}><i>${on ? ic(icon || 'check') : ''}</i>${txt}</span>`;
+  return `<div class="track">${node(true,'Enviada')}<span class="ln ${on2 ? 'on' : ''}"></span>${node(on2, mid[0], mid[1], mid[2])}<span class="ln ${on3 ? 'on' : ''}"></span>${node(on3,'Entregada')}</div>`;
+}
+function pMis() {
+  const mine = S.epp.filter(e => e.puesto === cur.puesto).sort((a,b) => b.fecha - a.fecha);
+  return `<div class="phead"><div><h1>Mis solicitudes</h1><p>Solo tú y SST pueden ver estas solicitudes.</p></div><div class="acts"><button class="btn primary" data-a="go" data-v="solicitar">${ic('plus')}Nueva solicitud</button></div></div>
+  <div class="card">${mine.map(e => `<div class="req" role="button" tabindex="0" data-a="eppView" data-id="${e.id}"><img src="${e.foto}" alt=""><div><div class="row"><b>${esc(item(e.item).nombre)}</b><span class="small muted">${e.id}, ${fmtD(e.fecha)}</span></div>${eppTrack(e)}
+  ${e.estado === 'en_espera' ? `<div class="small" style="margin-top:8px;color:var(--medio);font-weight:600">Sin stock por ahora. Fecha estimada de cambio: ${fmtDY(e.espera)}</div>` : ''}
+  ${e.estado === 'aprobada' ? `<div class="small" style="margin-top:8px;color:var(--bajo);font-weight:600">Acércate a SST con tu EPP anterior para firmar la entrega.</div>` : ''}
+  ${e.estado === 'rechazada' ? `<div class="small" style="margin-top:8px;color:var(--alto);font-weight:600">Motivo: ${esc(e.rechazo)}</div>` : ''}</div>${chip(EST, e.estado)}</div>`).join('') || emptyBox('Aún no tienes solicitudes', '<button class="btn primary" style="margin-top:12px" data-a="go" data-v="solicitar">Solicitar cambio de EPP</button>')}</div>`;
+}
+function eppView(id) {
+  const e = E(id); if (!e) return;
+  const isS = cur.role === 'sst';
+  const it = item(e.item), pp = P(e.puesto), st = stockState(it);
+  let extra = '';
+  if (e.estado === 'en_espera') extra = banner('warn', 'clock', 'En espera por falta de stock', `Fecha estimada de cambio: ${fmtDY(e.espera)}.`);
+  if (e.estado === 'rechazada') extra = banner('bad', 'x', 'Solicitud rechazada', esc(e.rechazo));
+  if (e.estado === 'aprobada') extra = banner('ok', 'check', 'Aprobada', isS ? 'Entrega el EPP cuando el trabajador devuelva el anterior y firme el formato físico.' : 'Acércate a SST con tu EPP anterior para firmar la entrega.');
+  if (e.estado === 'entregada') extra = banner('ok', 'check', 'Entregada el ' + fmtDY(e.entrega.fecha), 'EPP anterior devuelto y formato de entrega firmado.');
+  const body = `${extra}<div class="grid g2"><div><img src="${e.foto}" data-zoom alt="Foto del EPP" style="width:100%;border-radius:10px;cursor:zoom-in"></div>
+  <dl class="dl">${isS ? `<dt>Trabajador</dt><dd>${esc(e.persona.nombre)}</dd><dt>Puesto</dt><dd>${esc(pp ? pp.nombre : '')}</dd><dt>DNI</dt><dd>${esc(e.persona.dni)}</dd>` : ''}
+  <dt>EPP</dt><dd>${esc(it.nombre)}</dd><dt>Motivo</dt><dd>${esc(e.motivo)}</dd><dt>Descripción</dt><dd style="font-weight:400">${esc(e.desc)}</dd><dt>Enviada</dt><dd>${fmtDT(e.fecha)}</dd>
+  ${isS ? `<dt>Stock disponible</dt><dd><span class="chip ${st[1]}">${it.stock} en stock, mínimo ${it.min}</span></dd>` : ''}<dt>Estado</dt><dd>${chip(EST, e.estado)}</dd></dl></div>
+  <div style="margin-top:18px">${eppTrack(e)}</div><h4 style="margin:18px 0 0;font-size:15px">Historial</h4>${histList(e.hist)}`;
+  let foot = `<button class="btn" data-a="close">Cerrar</button>`;
+  if (isS) {
+    const noStock = it.stock <= 0;
+    if (e.estado === 'enviada') foot = `<button class="btn danger" data-a="eppReject" data-id="${id}">Rechazar</button><button class="btn" data-a="eppWait" data-id="${id}">${ic('pause')}Poner en espera</button><button class="btn primary" data-a="eppApprove" data-id="${id}" ${noStock ? 'disabled title="No hay stock: ponla en espera"' : ''}>${ic('check')}Aprobar</button>`;
+    if (e.estado === 'en_espera') foot = `<button class="btn danger" data-a="eppReject" data-id="${id}">Rechazar</button><button class="btn primary" data-a="eppApprove" data-id="${id}" ${noStock ? 'disabled title="Aún no hay stock"' : ''}>${ic('check')}Aprobar</button>`;
+    if (e.estado === 'aprobada') foot = `<button class="btn" data-a="close">Cerrar</button><button class="btn primary" data-a="eppDeliver" data-id="${id}">${ic('helmet')}Marcar como entregada</button>`;
+  }
+  modal(`${e.id}: ${esc(it.nombre)}`, body, foot, true);
+}
+
+/* ===================== Biblioteca ===================== */
+function pBiblio() {
+  const isS = cur.role === 'sst';
+  const tabs = ['Todos', ...LIBTIPOS];
+  const list = S.biblioteca.filter(b => UI.libTab === 'Todos' || b.tipo === UI.libTab).sort((a,b) => b.fecha - a.fecha);
+  return `<div class="phead"><div><h1>Biblioteca SST</h1><p>${isS ? 'Publica y organiza afiches, flyers, procedimientos e instructivos. Los trabajadores solo pueden verlos.' : 'Afiches, flyers, procedimientos e instructivos de seguridad del almacén.'}</p></div>${isS ? `<div class="acts"><button class="btn primary" data-a="libEdit">${ic('plus')}Publicar contenido</button></div>` : ''}</div>
+  <div class="tabs" role="tablist">${tabs.map(t => `<button role="tab" aria-selected="${UI.libTab === t}" data-a="libTab" data-v="${t}">${t}<span class="n">${t === 'Todos' ? S.biblioteca.length : S.biblioteca.filter(b => b.tipo === t).length}</span></button>`).join('')}</div>
+  <div class="lib">${list.map(b => `<div class="libc" role="button" tabindex="0" data-a="libOpen" data-id="${b.id}"><div class="th" style="--c:${LIBC[b.tipo]}">${libThumb(b)}</div><div class="bd"><div class="row"><span class="rchip" style="--c:${LIBC[b.tipo]}">${b.tipo}</span>${b.codigo ? `<span class="small muted">${esc(b.codigo)}</span>` : ''}</div><b>${esc(b.titulo)}</b><p>${esc(b.resumen)}</p>
+  ${isS ? `<div class="row" style="margin-top:12px"><button class="btn sm" data-a="libEdit" data-id="${b.id}">${ic('edit')}Editar</button><button class="btn sm danger" data-a="libDel" data-id="${b.id}">${ic('trash')}Eliminar</button></div>` : ''}</div></div>`).join('')}</div>
+  ${list.length ? '' : `<div class="card">${emptyBox('No hay contenidos de este tipo', isS ? 'Publica el primero con el botón de arriba.' : '')}</div>`}`;
+}
+function libOpen(id) {
+  const b = S.biblioteca.find(x => x.id === id); if (!b) return;
+  modal(esc(b.titulo), `<div style="background:${LIBC[b.tipo]};border-radius:10px;display:grid;place-items:center;aspect-ratio:21/8;overflow:hidden;margin-bottom:16px">${b.img ? `<img src="${b.img}" alt="" style="width:100%;height:100%;object-fit:cover">` : `<span class="sign ${libShape(b.tipo)}">${ic(libIcon(b))}</span>`}</div>
+  <div class="row" style="margin-bottom:12px"><span class="rchip" style="--c:${LIBC[b.tipo]}">${b.tipo}</span>${b.codigo ? `<span class="small muted">${esc(b.codigo)}</span>` : ''}<span class="small muted">Publicado el ${fmtDY(b.fecha)}</span></div>
+  <p style="font-weight:600;margin-bottom:10px">${esc(b.resumen)}</p>${b.cuerpo.map(p => `<p style="margin-bottom:10px;max-width:68ch">${esc(p)}</p>`).join('')}`, `<button class="btn" data-a="close">Cerrar</button>`, true);
+}
+function libEdit(id) {
+  const b = id ? S.biblioteca.find(x => x.id === id) : null;
+  UI.photos = {}; if (b && b.img) UI.photos.lib = b.img;
+  modal(b ? 'Editar contenido' : 'Publicar contenido', `<div class="grid g2"><div class="field"><label for="b-tipo">Tipo</label><select class="inp" id="b-tipo">${LIBTIPOS.map(t => `<option ${b && b.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+  <div class="field"><label for="b-cod">Código (opcional)</label><input class="inp" id="b-cod" value="${b ? esc(b.codigo) : ''}" placeholder="PR-SST-000"></div></div>
+  <div class="field"><label for="b-tit">Título</label><input class="inp" id="b-tit" value="${b ? esc(b.titulo) : ''}"></div>
+  <div class="field"><label for="b-res">Resumen</label><input class="inp" id="b-res" value="${b ? esc(b.resumen) : ''}" placeholder="Una línea que explique el contenido"></div>
+  <div class="field"><label for="b-cue">Contenido</label><textarea class="inp" id="b-cue" style="min-height:120px" placeholder="Separa los párrafos con una línea en blanco">${b ? esc(b.cuerpo.join('\n\n')) : ''}</textarea></div>
+  <div class="field"><label>Imagen (opcional)</label>${photoField('lib', {noSample:true, hint:'Si no subes una imagen, se muestra un ícono según el tipo.'})}</div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="libSave" data-id="${b ? b.id : ''}">${b ? 'Guardar cambios' : 'Publicar'}</button>`, true);
+}
+function libSave(id) {
+  const tit = val('#b-tit'), res = val('#b-res'), cue = $('#b-cue').value.trim();
+  if (!tit || !res) return mErr('Completa el título y el resumen.');
+  const data = {tipo:val('#b-tipo'), codigo:val('#b-cod'), titulo:tit, resumen:res, cuerpo:cue ? cue.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean) : [], img:UI.photos.lib || null};
+  if (id) { Object.assign(S.biblioteca.find(x => x.id === id), data); closeModal(); commit(); toast('Cambios guardados.'); return; }
+  const nb = Object.assign({id:nextId('B'), fecha:now()}, data);
+  S.biblioteca.push(nb);
+  notify('trabajador', null, `SST publicó en la biblioteca: ${tit}.`, {t:'lib', id:nb.id}, 'book');
+  act('sst', 'trabajador', `${meName()} publicó “${tit}” en la biblioteca.`);
+  closeModal(); commit(); toast('Contenido publicado. Los trabajadores ya pueden verlo.');
+}
+
+/* ===================== Notificaciones ===================== */
+function pNotifs() {
+  const list = myNotifs();
+  return `<div class="phead"><div><h1>Notificaciones</h1><p>Avisos sobre cambios en lo que te corresponde.</p></div><div class="acts"><button class="btn" data-a="readAll">${ic('check')}Marcar todas como leídas</button></div></div>
+  <div class="card">${list.map(n => `<div class="notif ${n.read ? '' : 'unread'}" role="button" tabindex="0" data-a="notifOpen" data-id="${n.id}"><span class="ic">${ic(n.icon || 'bell')}</span><div class="tx">${esc(n.text)}<small>${rel(n.fecha)}</small></div>${n.read ? '' : '<span class="u" aria-label="Sin leer"></span>'}</div>`).join('') || emptyBox('No tienes notificaciones', 'Te avisaremos aquí cuando algo cambie.')}</div>`;
+}
+function notifOpen(id) {
+  const n = S.notifs.find(x => x.id === id); if (!n) return;
+  n.read = true;
+  const r = n.ref || {};
+  if (r.t === 'epp') { V[cur.role] = {p: cur.role === 'sst' ? 'epp' : 'mis'}; commit(); eppView(r.id); return; }
+  if (r.t === 'tarea') return go('tarea', r.id);
+  if (r.t === 'hallazgo') return go('hallazgo', r.id);
+  if (r.t === 'inv') return go('inventario');
+  if (r.t === 'puestos') return go('puestos');
+  if (r.t === 'lib') { V[cur.role] = {p:'biblio'}; commit(); libOpen(r.id); return; }
+  commit();
+}
+
+/* ===================== SST: Dashboard ===================== */
+function pDash() {
+  const valid = S.hallazgos.filter(h => h.estado !== 'descartado');
+  const open = valid.filter(h => ['registrado','en_atencion'].includes(h.estado));
+  const altoOpen = open.filter(h => h.riesgo === 'Alto').length;
+  const closed = valid.filter(h => h.estado === 'cerrado' && h.cerradoEn);
+  const avg = closed.length ? closed.reduce((s, h) => s + (h.cerradoEn - h.fecha) / DAY, 0) / closed.length : 0;
+  const eppNew = S.epp.filter(e => e.estado === 'enviada').length;
+  const porVal = S.tareas.filter(t => t.estado === 'por_validar').length;
+  const low = S.inventario.filter(i => i.stock <= i.min);
+
+  const items = [];
+  S.tareas.filter(t => t.estado === 'por_validar').forEach(t => items.push({icon:'check', c:'var(--bajo)', bg:'var(--ok-bg)', t:`Validar ${t.id}: ${t.titulo}`, s:`${P(t.puesto).persona.nombre} terminó la tarea`, a:'go', v:'tarea', id:t.id}));
+  S.tareas.filter(t => t.estado === 'modificacion').forEach(t => items.push({icon:'clock', c:'var(--medio)', bg:'var(--warn-bg)', t:`Responder pedido de ${t.mod.tipo.toLowerCase()} en ${t.id}`, s:`${P(t.puesto).persona.nombre}: ${t.mod.motivo}`, a:'go', v:'tarea', id:t.id}));
+  S.hallazgos.filter(h => h.estado === 'en_atencion').forEach(h => { const ts = S.tareas.filter(t => t.hallazgo === h.id); if (ts.length && ts.every(t => t.estado === 'cerrada')) items.push({icon:'shield', c:'var(--sst)', bg:'var(--ok-bg)', t:`Cerrar ${h.id}: sus tareas ya están validadas`, s:h.desc, a:'go', v:'hallazgo', id:h.id}); });
+  S.epp.filter(e => e.estado === 'enviada').sort((a,b) => b.fecha - a.fecha).forEach(e => items.push({icon:'helmet', c:'var(--trab)', bg:'var(--info-bg)', t:`${e.persona.nombre} pide ${item(e.item).nombre}`, s:`${e.id}, ${rel(e.fecha)}`, a:'eppView', id:e.id}));
+  S.epp.filter(e => e.estado === 'en_espera' && item(e.item).stock > 0).forEach(e => items.push({icon:'box', c:'var(--bajo)', bg:'var(--ok-bg)', t:`Ya hay stock para ${e.id}`, s:`${item(e.item).nombre} de ${e.persona.nombre}`, a:'eppView', id:e.id}));
+  S.tareas.filter(t => !['cerrada','por_validar'].includes(t.estado) && daysLeft(t.limite) < 0).forEach(t => items.push({icon:'alert', c:'var(--alto)', bg:'var(--bad-bg)', t:`${t.id} está vencida`, s:t.titulo, a:'go', v:'tarea', id:t.id}));
+  S.hallazgos.filter(h => h.estado === 'registrado').forEach(h => items.push({icon:'alert', c:RC[h.riesgo], bg:'var(--surface-2)', t:`Asignar una tarea a ${h.id}`, s:h.desc, a:'go', v:'hallazgo', id:h.id}));
+  if (low.length) items.push({icon:'box', c:'var(--medio)', bg:'var(--warn-bg)', t:`${low.length} recursos en o bajo el mínimo`, s:low.slice(0, 3).map(i => i.nombre).join(', ') + (low.length > 3 ? '…' : ''), a:'go', v:'inventario'});
+  if (S.personas.length) items.push({icon:'users', c:'var(--muted)', bg:'var(--surface-2)', t:`${S.personas.length} registro${S.personas.length > 1 ? 's' : ''} por asignar a un puesto`, s:S.personas.map(p => p.nombre).join(', '), a:'go', v:'puestos'});
+
+  const count = (arr, key, keys) => { const m = {}; (keys || []).forEach(k => m[k] = 0); arr.forEach(x => m[x[key]] = (m[x[key]] || 0) + 1); return Object.entries(m); };
+  const byTipo = count(valid, 'tipo').sort((a,b) => b[1] - a[1]);
+  const maxT = Math.max(1, ...byTipo.map(x => x[1]));
+  const byRisk = count(valid, 'riesgo', RIESGOS);
+  const tot = valid.length || 1;
+  const byArea = count(valid, 'area').sort((a,b) => b[1] - a[1]);
+  const byResp = count(valid, 'areaResp', AREAS_RESP).sort((a,b) => b[1] - a[1]);
+  const openByResp = AREAS_RESP.map(r => [r, open.filter(h => h.areaResp === r).length]);
+  const months = [];
+  for (let i = 5; i >= 0; i--) { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); months.push({y:d.getFullYear(), m:d.getMonth()}); }
+  const mData = months.map(mm => { const hs = valid.filter(h => { const d = new Date(h.fecha); return d.getFullYear() === mm.y && d.getMonth() === mm.m; }); return {lbl:MES[mm.m], n:hs.length, r:RIESGOS.map(r => hs.filter(h => h.riesgo === r).length)}; });
+  const maxM = Math.max(1, ...mData.map(x => x.n));
+  const avgRisk = RIESGOS.map(r => { const cs = closed.filter(h => h.riesgo === r); return [r, cs.length ? cs.reduce((s, h) => s + (h.cerradoEn - h.fecha) / DAY, 0) / cs.length : 0]; });
+  const maxA = Math.max(1, ...avgRisk.map(x => x[1]));
+
+  return `<div class="phead"><div><h1>Dashboard SST</h1><p>Estado de los hallazgos, las solicitudes de EPP y las tareas con otras áreas.</p></div><div class="acts"><button class="btn" data-a="go" data-v="hallazgos">${ic('alert')}Ver hallazgos</button><button class="btn primary" data-a="halNew">${ic('plus')}Registrar hallazgo</button></div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v cond">${open.length}</div><div class="l">Hallazgos abiertos</div></div>
+    <div class="kpi ${altoOpen ? 'alert' : ''}"><div class="v cond">${altoOpen}</div><div class="l">Abiertos de riesgo alto</div></div>
+    <div class="kpi"><div class="v cond">${avg.toFixed(1)}<small>días</small></div><div class="l">Tiempo promedio de atención</div></div>
+    <div class="kpi"><div class="v cond">${eppNew}</div><div class="l">Solicitudes de EPP nuevas</div></div>
+    <div class="kpi"><div class="v cond">${porVal}</div><div class="l">Tareas por validar</div></div>
+    <div class="kpi ${low.length ? 'alert' : ''}"><div class="v cond">${low.length}</div><div class="l">Recursos bajo el mínimo</div></div>
+  </div>
+  <div class="grid g-main" style="margin-bottom:16px">
+    <div class="card"><div class="chead"><h2>Requiere tu atención</h2><span class="sp"></span><span class="small muted">${items.length} pendientes</span></div><div class="attn">${items.slice(0, 7).map(x => `<button data-a="${x.a}" ${x.v ? `data-v="${x.v}"` : ''} ${x.id ? `data-id="${x.id}"` : ''}><span class="ic" style="--c:${x.c};--c-bg:${x.bg}">${ic(x.icon)}</span><span class="tx"><b>${esc(x.t)}</b><span>${esc(x.s)}</span></span>${ic('right')}</button>`).join('') || emptyBox('Todo al día', 'No hay pendientes por ahora.')}</div></div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><div class="chead"><h2>Hallazgos por nivel de riesgo</h2></div>
+        <div class="stack">${byRisk.map(([r, n]) => `<span style="width:${n/tot*100}%;background:${RC[r]}" title="${r}: ${n}"></span>`).join('')}</div>
+        <div class="legend">${byRisk.map(([r, n]) => `<span style="--c:${RC[r]}"><i></i>${r}: <b>${n}</b> (${Math.round(n/tot*100)}%)</span>`).join('')}</div></div>
+      <div class="card"><div class="chead"><h2>Tiempo promedio de atención por riesgo</h2></div>
+        <div class="bars">${avgRisk.map(([r, d]) => `<div class="bar" style="grid-template-columns:80px 1fr 54px"><span>${r}</span><div class="t"><span style="width:${d/maxA*100}%;--c:${RC[r]}"></span></div><span class="num">${d.toFixed(1)} d</span></div>`).join('')}</div></div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-bottom:16px">
+    <div class="card"><div class="chead"><h2>Hallazgos por área responsable</h2><span class="sp"></span><span class="small muted">Quién debe solucionarlos</span></div>
+      <div class="stack">${byResp.map(([r, n]) => `<span style="width:${n/tot*100}%;background:${ARC[r]}" title="${r}: ${n}"></span>`).join('')}</div>
+      <div class="resp">${byResp.map(([r, n]) => { const o = openByResp.find(x => x[0] === r)[1]; return `<button class="resp-r" data-a="respFilter" data-v="${r}"><i style="--c:${ARC[r]}"></i><span class="nm">${r}</span><span class="small muted">${o} ${o === 1 ? 'abierto' : 'abiertos'}</span><b class="cond">${n}</b><span class="pc">${Math.round(n/tot*100)}%</span></button>`; }).join('')}</div>
+      <p class="small muted" style="padding:0 18px 14px">Total: ${valid.length} hallazgos. Toca un área para ver sus hallazgos.</p></div>
+    <div class="card"><div class="chead"><h2>Hallazgos por tipo</h2></div><div class="bars">${byTipo.map(([t, n]) => `<div class="bar"><span>${t}</span><div class="t"><span style="width:${n/maxT*100}%"></span></div><span class="num">${n}</span></div>`).join('')}</div></div>
+  </div>
+  <div class="grid g-main">
+  <div class="card"><div class="chead"><h2>Frecuencia de hallazgos por mes</h2><span class="sp"></span><div class="legend" style="padding:0">${RIESGOS.map(r => `<span style="--c:${RC[r]}"><i></i>${r}</span>`).join('')}</div></div>
+    <div class="cols">${mData.map(m => `<div class="c"><span class="val">${m.n}</span><div class="b" style="height:${m.n/maxM*120}px">${m.r.map((n, i) => `<span style="height:${m.n ? n/m.n*100 : 0}%;background:${RC[RIESGOS[i]]}"></span>`).join('')}</div></div>`).join('')}</div>
+    <div class="cols-x">${mData.map(m => `<span>${m.lbl}</span>`).join('')}</div>
+    <p class="small muted" style="padding:0 18px 14px">Últimos seis meses. No incluye hallazgos descartados.</p></div>
+    <div class="card"><div class="chead"><h2>Hallazgos por ubicación</h2></div><div class="bars">${byArea.map(([a, n]) => `<div class="bar" style="grid-template-columns:130px 1fr 44px"><span>${a}</span><div class="t"><span style="width:${n/tot*100}%;--c:var(--trab)"></span></div><span class="num">${Math.round(n/tot*100)}%</span></div>`).join('')}</div></div>
+  </div>`;
+}
+
+/* ===================== SST: Hallazgos ===================== */
+function filteredH() {
+  const f = UI.hf, q = f.q.toLowerCase();
+  return S.hallazgos.filter(h => (!f.estado || h.estado === f.estado) && (!f.riesgo || h.riesgo === f.riesgo) && (!f.area || h.area === f.area) && (!f.resp || h.areaResp === f.resp) && (!q || (h.id + ' ' + h.desc + ' ' + h.tipo).toLowerCase().includes(q))).sort((a,b) => b.fecha - a.fecha);
+}
+function hTable() {
+  const list = filteredH();
+  if (!list.length) return emptyBox('Ningún hallazgo coincide con los filtros', 'Cambia o limpia los filtros para ver más resultados.');
+  return `<div class="tscroll"><table class="tbl"><thead><tr><th>Código</th><th>Hallazgo</th><th>Ubicación</th><th>Responsable</th><th>Riesgo</th><th>Estado</th><th>Tareas</th><th>Fecha</th></tr></thead><tbody>${list.map(h => { const ts = S.tareas.filter(t => t.hallazgo === h.id); return `<tr class="click" data-a="go" data-v="hallazgo" data-id="${h.id}"><td class="code">${h.id}</td><td><b style="font-weight:600">${esc(h.desc)}</b><div class="small muted">${h.tipo}</div></td><td>${h.area}</td><td><span class="rchip" style="--c:${ARC[h.areaResp]}">${h.areaResp}</span></td><td>${riskTag(h.riesgo)}</td><td>${chip(HST, h.estado)}</td><td>${ts.length ? ts.map(t => `<span class="small" style="display:block">${t.id}</span>`).join('') : '<span class="small muted">Sin tareas</span>'}</td><td class="small">${fmtD(h.fecha)}</td></tr>`; }).join('')}</tbody></table></div>`;
+}
+function pHallazgos() {
+  const f = UI.hf;
+  const sel = (k, opts, lbl) => `<select class="inp" data-hf="${k}" aria-label="${lbl}"><option value="">${lbl}</option>${opts.map(o => Array.isArray(o) ? `<option value="${o[0]}" ${f[k] === o[0] ? 'selected' : ''}>${o[1]}</option>` : `<option ${f[k] === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+  return `<div class="phead"><div><h1>Hallazgos</h1><p>Condiciones inseguras registradas en las inspecciones. Cada hallazgo se atiende con tareas asignadas a otras áreas.</p></div>
+  <div class="acts"><button class="btn" data-a="exportX">${ic('download')}Excel</button><button class="btn" data-a="exportP">${ic('download')}PDF</button><button class="btn primary" data-a="halNew">${ic('plus')}Registrar hallazgo</button></div></div>
+  <div class="filters">${sel('estado', Object.entries(HST).map(([k, v]) => [k, v[0]]), 'Todos los estados')}${sel('riesgo', RIESGOS, 'Todos los riesgos')}${sel('area', AREAS, 'Todas las ubicaciones')}${sel('resp', AREAS_RESP, 'Todas las áreas responsables')}
+  <input class="inp" id="h-q" type="search" placeholder="Buscar por código o texto" value="${esc(f.q)}" style="min-width:240px"><span class="small muted" id="h-cnt">${filteredH().length} resultados. La exportación respeta estos filtros.</span></div>
+  <div class="card" id="h-wrap">${hTable()}</div>`;
+}
+function updateH() { const w = $('#h-wrap'); if (w) w.innerHTML = hTable(); const c = $('#h-cnt'); if (c) c.textContent = filteredH().length + ' resultados. La exportación respeta estos filtros.'; }
+function halNew() {
+  UI.photos = {};
+  modal('Registrar hallazgo', `<div class="field"><label for="h-desc">Hallazgo</label><input class="inp" id="h-desc" placeholder="Ejemplo: extintor sin señalización en la zona de carga"></div>
+  <div class="field"><label for="h-det">Detalle</label><textarea class="inp" id="h-det" placeholder="Qué se observó, dónde y en qué condiciones"></textarea></div>
+  <div class="grid g2"><div class="field"><label for="h-tipo">Tipo de hallazgo</label><select class="inp" id="h-tipo">${TIPOS.map(t => `<option>${t}</option>`).join('')}</select></div>
+  <div class="field"><label for="h-area">Ubicación</label><select class="inp" id="h-area">${AREAS.map(t => `<option>${t}</option>`).join('')}</select></div>
+  <div class="field"><label for="h-riesgo">Nivel de riesgo</label><select class="inp" id="h-riesgo">${RIESGOS.map(t => `<option ${t === 'Medio' ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+  <div class="field"><label for="h-prio">Prioridad</label><select class="inp" id="h-prio">${PRIOR.map(t => `<option ${t === 'Media' ? 'selected' : ''}>${t}</option>`).join('')}</select></div></div>
+  <div class="field"><label for="h-resp">Área responsable de solucionarlo</label><select class="inp" id="h-resp">${AREAS_RESP.map(t => `<option>${t}</option>`).join('')}</select><span class="hint">Mantenimiento y Administración reciben tareas con evidencia. Si lo resuelve SST o Calidad, SST lo cierra directamente.</span></div>
+  <div class="field"><label>Foto de evidencia</label>${photoField('hal')}</div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="halSave">Registrar hallazgo</button>`, true);
+}
+function halSave() {
+  const desc = val('#h-desc'), det = val('#h-det');
+  if (!desc) return mErr('Escribe el hallazgo.');
+  if (!UI.photos.hal) return mErr('Adjunta una foto de evidencia.');
+  const id = nextId('H');
+  const h = {id, fecha:now(), desc, detalle:det || desc, tipo:val('#h-tipo'), area:val('#h-area'), riesgo:val('#h-riesgo'), prioridad:val('#h-prio'), areaResp:val('#h-resp'), responsable:meName(), fotos:[UI.photos.hal], estado:'registrado', cerradoEn:null, motivo:'', hist:[]};
+  addHist(h, 'Registró el hallazgo');
+  S.hallazgos.push(h); UI.photos = {};
+  closeModal(); V.sst = {p:'hallazgo', id}; lastKey = ''; commit(); toast(`Hallazgo <em>${id}</em> registrado. Ahora asígnale una tarea.`);
+}
+function pHallazgo(id) {
+  const h = H(id); if (!h) return pHallazgos();
+  const ts = S.tareas.filter(t => t.hallazgo === id);
+  const allClosed = ts.length > 0 && ts.every(t => t.estado === 'cerrada');
+  const activeTasks = ts.some(t => t.estado !== 'cerrada');
+  const isOpen = ['registrado','en_atencion'].includes(h.estado);
+  const direct = ['SST','Calidad'].includes(h.areaResp) && !activeTasks;
+  const canClose = allClosed || direct;
+  let b = '';
+  if (h.estado === 'descartado') b = banner('info', 'x', 'Hallazgo descartado', esc(h.motivo));
+  if (h.estado === 'cerrado') b = banner('ok', 'check', `Cerrado el ${fmtDY(h.cerradoEn)}`, `Tiempo de atención: ${Math.max(0, Math.round((h.cerradoEn - h.fecha) / DAY))} días.`);
+  if (isOpen && allClosed) b = banner('ok', 'check', 'Todas las tareas están validadas', 'Ya puedes cerrar el hallazgo.', `<button class="btn primary" data-a="halClose" data-id="${id}">Cerrar hallazgo</button>`);
+  if (h.estado === 'registrado' && !ts.length && direct) b = banner('info', 'shield', `Lo resuelve ${h.areaResp}`, 'No necesita tareas para otras áreas. Ciérralo cuando la condición esté corregida.', `<button class="btn primary" data-a="halClose" data-id="${id}">Cerrar hallazgo</button>`);
+  else if (h.estado === 'registrado' && !ts.length) b = banner('warn', 'alert', 'Este hallazgo aún no tiene tareas', 'Asigna una tarea a Mantenimiento o Administración para atenderlo.', `<button class="btn primary" data-a="taskNew" data-id="${id}">${ic('plus')}Asignar tarea</button>`);
+  return `<button class="crumb" data-a="go" data-v="hallazgos">${ic('back')}Hallazgos</button>
+  <div class="phead"><div><div class="row wrap" style="margin-bottom:8px"><span class="code cond" style="font-size:18px;font-weight:700;color:var(--muted)">${h.id}</span>${chip(HST, h.estado)}${riskTag(h.riesgo)}</div><h1>${esc(h.desc)}</h1></div>
+  ${isOpen ? `<div class="acts"><button class="btn danger" data-a="halDiscard" data-id="${id}" ${activeTasks ? 'disabled title="Tiene tareas en curso"' : ''}>Descartar</button><button class="btn" data-a="taskNew" data-id="${id}">${ic('plus')}Asignar tarea a un área</button><button class="btn primary" data-a="halClose" data-id="${id}" ${canClose ? '' : 'disabled title="Disponible cuando todas sus tareas estén cerradas"'}>Cerrar hallazgo</button></div>` : ''}</div>
+  ${b}
+  <div class="grid g-main"><div class="grid" style="align-content:start">
+    <div class="card pad"><h2 style="margin-bottom:8px">Descripción</h2><p style="max-width:70ch">${esc(h.detalle)}</p><div class="photos" style="margin-top:14px">${h.fotos.map(f => `<img src="${f}" data-zoom alt="Foto del hallazgo">`).join('')}</div></div>
+    <div class="card"><div class="chead"><h2>Tareas asignadas</h2><span class="chip">${ts.length}</span></div>
+    ${ts.length ? `<div class="tscroll"><table class="tbl"><tbody>${ts.map(t => `<tr class="click" data-a="go" data-v="tarea" data-id="${t.id}"><td class="code">${t.id}</td><td><b style="font-weight:600">${esc(t.titulo)}</b><div class="small muted">${esc(P(t.puesto).persona.nombre)}</div></td><td>${roleChip(t.area)}</td><td>${chip(TST, t.estado)}</td><td>${semChip(t)}</td><td style="width:110px">${prog(t)}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('Sin tareas todavía', isOpen ? `<button class="btn primary" style="margin-top:12px" data-a="taskNew" data-id="${id}">${ic('plus')}Asignar tarea a un área</button>` : '')}</div>
+  </div><div class="grid" style="align-content:start">
+    <div class="card pad"><dl class="dl"><dt>Tipo</dt><dd>${h.tipo}</dd><dt>Ubicación</dt><dd>${h.area}</dd><dt>Área responsable</dt><dd><span class="rchip" style="--c:${ARC[h.areaResp]}">${h.areaResp}</span></dd><dt>Nivel de riesgo</dt><dd>${riskTag(h.riesgo)}</dd><dt>Prioridad</dt><dd>${h.prioridad}</dd><dt>Responsable</dt><dd>${esc(h.responsable)}</dd><dt>Registrado</dt><dd>${fmtDT(h.fecha)}</dd>${h.cerradoEn ? `<dt>Cerrado</dt><dd>${fmtDT(h.cerradoEn)}</dd>` : ''}</dl></div>
+    <div class="card"><div class="chead"><h2>Historial</h2></div>${histList(h.hist)}</div>
+  </div></div>`;
+}
+function halClose(id) {
+  const h = H(id); h.estado = 'cerrado'; h.cerradoEn = now(); addHist(h, 'Cerró el hallazgo');
+  commit(); toast(`Hallazgo <em>${id}</em> cerrado.`);
+}
+function halDiscard(id) {
+  modal('Descartar hallazgo', `<p class="muted" style="margin-bottom:14px">El hallazgo quedará como descartado y no contará en los indicadores.</p><div class="field"><label for="d-mot">Motivo</label><textarea class="inp" id="d-mot" placeholder="Explica por qué se descarta"></textarea></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="halDiscardSave" data-id="${id}">Descartar hallazgo</button>`);
+}
+function halDiscardSave(id) {
+  const m = val('#d-mot'); if (!m) return mErr('Escribe el motivo.');
+  const h = H(id); h.estado = 'descartado'; h.motivo = m; addHist(h, 'Descartó el hallazgo');
+  closeModal(); commit(); toast(`Hallazgo <em>${id}</em> descartado.`);
+}
+
+/* ===================== Tareas (SST ↔ áreas) ===================== */
+const puestoOpts = (area) => S.puestos.filter(p => p.rol === area).map(p => `<option value="${p.id}">${esc(p.persona.nombre)} (${esc(p.nombre)})</option>`).join('');
+function taskNew(hid) {
+  const h = H(hid);
+  const defA = h.areaResp === 'Administración' ? 'administracion' : 'mantenimiento';
+  modal(`Asignar tarea: ${h.id}`, `<p class="muted small" style="margin-bottom:14px">${esc(h.desc)}</p>
+  <div class="field"><label for="t-tit">Tarea</label><input class="inp" id="t-tit" placeholder="Ejemplo: Reparar la luz de emergencia"></div>
+  <div class="field"><label for="t-desc">Indicaciones</label><textarea class="inp" id="t-desc" placeholder="Qué debe hacerse y cómo se considera terminado"></textarea></div>
+  <div class="grid g3"><div class="field"><label for="t-area">Área</label><select class="inp" id="t-area"><option value="mantenimiento" ${defA === 'mantenimiento' ? 'selected' : ''}>Mantenimiento</option><option value="administracion" ${defA === 'administracion' ? 'selected' : ''}>Administración</option></select></div>
+  <div class="field"><label for="t-puesto">Responsable</label><select class="inp" id="t-puesto">${puestoOpts(defA)}</select></div>
+  <div class="field"><label for="t-lim">Fecha límite</label><input class="inp" id="t-lim" type="date" value="${isoDate(dIn(5))}"></div></div>
+  <div class="field"><label for="t-pasos">Pasos</label><textarea class="inp" id="t-pasos" style="min-height:110px" placeholder="Un paso por línea. Cada paso se completará con una foto de evidencia."></textarea><span class="hint">El responsable deberá subir una foto y un comentario por cada paso.</span></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="taskSave" data-id="${hid}">${ic('send')}Asignar tarea</button>`, true);
+}
+function taskSave(hid) {
+  const tit = val('#t-tit'), desc = val('#t-desc'), area = val('#t-area'), puesto = val('#t-puesto'), lim = val('#t-lim');
+  const pasos = $('#t-pasos').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!tit) return mErr('Escribe el nombre de la tarea.');
+  if (!lim) return mErr('Elige la fecha límite.');
+  if (parseDate(lim) < sod(now())) return mErr('La fecha límite no puede ser anterior a hoy.');
+  if (!pasos.length) return mErr('Agrega al menos un paso.');
+  const h = H(hid), id = nextId('T'), pp = P(puesto);
+  const t = {id, hallazgo:hid, titulo:tit, desc:desc || tit, area, puesto, creada:now(), limite:parseDate(lim), estado:'asignada', escena:HAL_SCENE[h.tipo] || 'trabajo', pasos:pasos.map(p => ({t:p, done:false, redo:false, ev:null})), mod:null, modResp:null, devol:null, hist:[]};
+  addHist(t, `Creó la tarea y la asignó a ${pp.persona.nombre}`);
+  S.tareas.push(t);
+  if (h.estado === 'registrado') h.estado = 'en_atencion';
+  addHist(h, `Asignó la tarea ${id} a ${ROLES[area].label}`);
+  notify(area, puesto, `${meName()} te asignó ${id}: ${tit}.`, {t:'tarea', id}, 'clip');
+  act('sst', area, `${meName()} asignó ${id} a ${pp.persona.nombre} a partir del hallazgo ${hid}.`);
+  closeModal(); V.sst = {p:'tarea', id}; lastKey = ''; commit(); toast(`Tarea <em>${id}</em> asignada a ${esc(pp.persona.nombre)}.`);
+}
+function pTareas() {
+  const G = {todas:['Todas', () => true], responder:['Por responder', t => t.estado === 'modificacion'], validar:['Por validar', t => t.estado === 'por_validar'], curso:['En curso', t => ['asignada','en_proceso','devuelta'].includes(t.estado)], cerradas:['Cerradas', t => t.estado === 'cerrada']};
+  const list = S.tareas.filter(G[UI.tTab][1]).sort((a,b) => b.creada - a.creada);
+  return `<div class="phead"><div><h1>Tareas a áreas</h1><p>Tareas que SST asignó a Mantenimiento y Administración a partir de los hallazgos.</p></div></div>
+  <div class="tabs" role="tablist">${Object.entries(G).map(([k, g]) => `<button role="tab" aria-selected="${UI.tTab === k}" data-a="tTab" data-v="${k}">${g[0]}<span class="n">${S.tareas.filter(g[1]).length}</span></button>`).join('')}</div>
+  <div class="card">${list.length ? `<div class="tscroll"><table class="tbl"><thead><tr><th>Código</th><th>Tarea</th><th>Área</th><th>Plazo</th><th>Avance</th><th>Estado</th></tr></thead><tbody>${list.map(t => `<tr class="click" data-a="go" data-v="tarea" data-id="${t.id}"><td class="code">${t.id}</td><td><b style="font-weight:600">${esc(t.titulo)}</b><div class="small muted">${t.hallazgo}, ${esc(P(t.puesto).persona.nombre)}</div></td><td>${roleChip(t.area)}</td><td>${semChip(t)}</td><td style="width:110px">${prog(t)}</td><td>${chip(TST, t.estado)}</td></tr>`).join('')}</tbody></table></div>` : emptyBox('No hay tareas en esta pestaña')}</div>`;
+}
+function pTablero() {
+  const mine = myTasks();
+  const cols = [['Por hacer', ['asignada','modificacion']], ['En proceso', ['en_proceso','devuelta']], ['Terminadas', ['por_validar','cerrada']]];
+  const flag = (t) => ({asignada:['info','clip','Nueva: acéptala o pide un cambio'], modificacion:['warn','clock','Esperando respuesta de SST'], devuelta:['bad','flag','Devuelta por SST'], por_validar:['warn','send','En validación de SST'], cerrada:['ok','check','Cerrada por SST']})[t.estado];
+  return `<div class="phead"><div><h1>Mis tareas</h1><p>Tareas que SST asignó a tu puesto. Acepta las nuevas, sube evidencia de cada paso y márcalas como terminadas.</p></div></div>
+  <div class="kanban">${cols.map(([title, sts]) => { const ts = mine.filter(t => sts.includes(t.estado)).sort((a,b) => a.limite - b.limite); return `<section class="kcol"><h3>${title}<span class="n">${ts.length}</span></h3>${ts.map(t => { const f = flag(t), s = sem(t); return `<button class="kcard" data-a="go" data-v="tarea" data-id="${t.id}"><div class="top"><span>${t.id}</span><span style="color:var(--${s.c === 'ok' ? 'bajo' : s.c === 'warn' ? 'medio' : 'alto'});font-weight:600">${s.t}</span></div><b>${esc(t.titulo)}</b>${prog(t)}${f ? `<div class="flag ${f[0]}">${ic(f[1])}${f[2]}</div>` : ''}</button>`; }).join('') || `<p class="small muted" style="padding:8px 4px 12px">Sin tareas.</p>`}</section>`; }).join('')}</div>`;
+}
+function pTarea(id) {
+  const t = T(id); if (!t) return cur.role === 'sst' ? pTareas() : pTablero();
+  const isS = cur.role === 'sst';
+  if (!isS && (t.area !== cur.role || t.puesto !== cur.puesto)) return pTablero();
+  const h = H(t.hallazgo), resp = P(t.puesto).persona.nombre;
+  const allDone = t.pasos.every(s => s.done);
+  let b = '';
+  if (t.estado === 'asignada') {
+    if (t.modResp) b += banner('bad', 'x', isS ? 'Rechazaste el pedido de modificación' : 'SST rechazó tu pedido de modificación', `“${esc(t.modResp)}”`);
+    b += isS ? banner('info', 'clock', `Esperando que ${esc(resp)} acepte la tarea`, `Asignada el ${fmtD(t.creada)}.`)
+      : banner('info', 'clip', 'SST te asignó esta tarea', 'Acéptala para empezar o pide un cambio de plazo o alcance si no puedes cumplirla.', `<button class="btn" data-a="modAsk" data-id="${id}">Solicitar modificación</button><button class="btn primary" data-a="taskAccept" data-id="${id}">${ic('check')}Aceptar tarea</button>`);
+  }
+  if (t.estado === 'modificacion') {
+    const m = t.mod;
+    const txt = `${m.tipo === 'Plazo' ? `Nueva fecha propuesta: <b>${fmtDY(m.nuevaFecha)}</b> (actual: ${fmtD(t.limite)}). ` : ''}Motivo: “${esc(m.motivo)}”`;
+    b = isS ? banner('warn', 'clock', `${esc(resp)} solicita una modificación de ${m.tipo.toLowerCase()}`, txt, `<button class="btn" data-a="modReject" data-id="${id}">Rechazar</button><button class="btn primary" data-a="modApprove" data-id="${id}">Aprobar cambio</button>`)
+      : banner('warn', 'clock', 'Esperando respuesta de SST', `Pediste una modificación de ${m.tipo.toLowerCase()}. ${txt}`);
+  }
+  if (t.estado === 'por_validar') b = isS ? banner('ok', 'check', `${esc(resp)} terminó la tarea`, 'Revisa la evidencia de cada paso. Si está conforme, ciérrala; si no, devuélvela con una alerta.', `<button class="btn danger" data-a="taskReturn" data-id="${id}">${ic('flag')}Devolver con alerta</button><button class="btn primary" data-a="taskClose" data-id="${id}">${ic('check')}Cerrar tarea</button>`)
+    : banner('info', 'send', 'Enviada a SST para validación', 'SST revisará la evidencia y cerrará la tarea o te la devolverá con observaciones.');
+  if (t.estado === 'devuelta') b = banner('bad', 'flag', isS ? 'Devuelta: esperando corrección' : 'SST devolvió la tarea: no se hizo correctamente', `“${esc(t.devol.com)}”${isS ? '' : ' Rehaz los pasos marcados en rojo y vuelve a enviarla.'}`);
+  if (t.estado === 'cerrada') b = banner('ok', 'check', `Cerrada por SST el ${fmtD(t.cerrada)}`, 'La evidencia fue validada.');
+  if (t.estado === 'en_proceso' && isS) b = banner('info', 'clock', `${esc(resp)} está trabajando en la tarea`, 'Verás cada paso completado con su evidencia en cuanto lo suba.');
+  if (!isS && ['en_proceso','devuelta'].includes(t.estado) && allDone) b += banner('ok', 'check', 'Todos los pasos tienen evidencia', t.estado === 'devuelta' ? 'Reenvía la tarea para que SST la valide otra vez.' : 'Marca la tarea como terminada para avisar a SST.', `<button class="btn primary" data-a="taskDone" data-id="${id}">${ic('send')}${t.estado === 'devuelta' ? 'Reenviar a SST' : 'Marcar como terminada'}</button>`);
+  const canWork = !isS && ['en_proceso','devuelta'].includes(t.estado);
+  const steps = t.pasos.map((s, i) => {
+    const old = !s.done && s.ev;
+    return `<li class="step ${s.done ? 'done' : ''} ${s.redo && !s.done ? 'redo' : ''}"><span class="num">${s.done ? ic('check') : i + 1}</span><div><div class="ttl">${esc(s.t)}</div>
+    ${s.redo && !s.done ? `<div class="small" style="color:var(--alto);font-weight:600">SST pidió rehacer este paso</div>` : ''}
+    ${s.ev ? `<div class="ev" ${old ? 'style="opacity:.55"' : ''}><img src="${s.ev.foto}" data-zoom alt="Evidencia del paso ${i + 1}"><div>${old ? '<small style="margin:0 0 4px">Evidencia anterior</small>' : ''}<p>${esc(s.ev.com)}</p><small>${esc(s.ev.quien)}, ${fmtDT(s.ev.fecha)}</small></div></div>` : `<div class="small muted">Sin evidencia todavía</div>`}</div>
+    <div>${canWork && !s.done ? `<button class="btn sm primary" data-a="stepDo" data-id="${id}" data-v="${i}">${ic('camera')}Completar paso</button>` : ''}${canWork && s.done ? `<button class="btn sm ghost" data-a="stepUndo" data-id="${id}" data-v="${i}">${ic('undo')}Rehacer</button>` : ''}</div></li>`;
+  }).join('');
+  const asignador = t.hist.length ? t.hist[0].quien : 'SST';
+  return `<button class="crumb" data-a="go" data-v="${isS ? 'tareas' : 'tablero'}">${ic('back')}${isS ? 'Tareas a áreas' : 'Mis tareas'}</button>
+  <div class="phead"><div><div class="row wrap" style="margin-bottom:8px"><span class="cond" style="font-size:18px;font-weight:700;color:var(--muted)">${t.id}</span>${chip(TST, t.estado)}${semChip(t)}</div><h1>${esc(t.titulo)}</h1></div></div>
+  ${b}
+  <div class="grid g-main"><div class="grid" style="align-content:start">
+    <div class="card"><div class="chead"><h2>Pasos</h2><span class="sp"></span><div style="width:140px">${prog(t)}</div></div><ol class="steps">${steps}</ol></div>
+    <div class="card pad"><h2 style="margin-bottom:8px">Indicaciones de SST</h2><p style="max-width:70ch">${esc(t.desc)}</p></div>
+  </div><div class="grid" style="align-content:start">
+    <div class="card pad"><dl class="dl"><dt>Origen</dt><dd>${isS ? `<button class="btn sm" data-a="go" data-v="hallazgo" data-id="${h.id}">${h.id}: ${esc(h.desc)}</button>` : `Hallazgo ${h.id}`}</dd><dt>Área</dt><dd>${roleChip(t.area)}</dd><dt>Responsable</dt><dd>${esc(resp)}<div class="small muted">${esc(P(t.puesto).nombre)}</div></dd><dt>Asignada por</dt><dd>${esc(asignador)}</dd><dt>Asignada</dt><dd>${fmtDT(t.creada)}</dd><dt>Fecha límite</dt><dd>${fmtDY(t.limite)}</dd></dl>
+    ${!isS ? `<h4 style="font-size:14px;margin:16px 0 8px">Foto del hallazgo</h4><div class="photos">${h.fotos.map(f => `<img src="${f}" data-zoom alt="Foto del hallazgo" style="width:100%;height:auto">`).join('')}</div><p class="small muted" style="margin-top:6px">${esc(h.desc)}. ${h.area}.</p>` : ''}</div>
+    <div class="card"><div class="chead"><h2>Historial</h2></div>${histList(t.hist)}</div>
+  </div></div>`;
+}
+function taskAccept(id) {
+  const t = T(id); t.estado = 'en_proceso'; t.modResp = null; addHist(t, 'Aceptó la tarea');
+  notify('sst', null, `${meName()} aceptó ${id}: ${t.titulo}.`, {t:'tarea', id}, 'check');
+  act(cur.role, 'sst', `${meName()} aceptó la tarea ${id}.`);
+  commit(); toast('Tarea aceptada. Ya puedes completar los pasos.');
+}
+function modAsk(id) {
+  const t = T(id);
+  modal('Solicitar modificación', `<p class="muted small" style="margin-bottom:14px">SST revisará tu pedido. Si lo aprueba, la tarea queda aceptada con el cambio.</p>
+  <div class="grid g2"><div class="field"><label for="mo-tipo">Qué necesitas cambiar</label><select class="inp" id="mo-tipo"><option>Plazo</option><option>Alcance</option></select></div>
+  <div class="field"><label for="mo-fecha">Nueva fecha límite</label><input class="inp" id="mo-fecha" type="date" value="${isoDate(t.limite + 5 * DAY)}"><span class="hint">Solo si pides más plazo. Actual: ${fmtDY(t.limite)}.</span></div></div>
+  <div class="field"><label for="mo-mot">Motivo</label><textarea class="inp" id="mo-mot" placeholder="Explica por qué no es posible cumplir la tarea como está"></textarea></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="modSend" data-id="${id}">${ic('send')}Enviar a SST</button>`);
+}
+function modSend(id) {
+  const t = T(id), tipo = val('#mo-tipo'), mot = val('#mo-mot'), f = val('#mo-fecha');
+  if (!mot) return mErr('Escribe el motivo.');
+  if (tipo === 'Plazo' && (!f || parseDate(f) <= t.limite)) return mErr('La nueva fecha debe ser posterior a la fecha límite actual.');
+  t.mod = {tipo, nuevaFecha: tipo === 'Plazo' ? parseDate(f) : null, motivo:mot, fecha:now()};
+  t.estado = 'modificacion'; t.modResp = null; addHist(t, `Solicitó modificación de ${tipo.toLowerCase()}`);
+  notify('sst', null, `${meName()} solicitó modificación de ${tipo.toLowerCase()} en ${id}.`, {t:'tarea', id}, 'clock');
+  act(cur.role, 'sst', `${meName()} pidió modificar el ${tipo.toLowerCase()} de ${id}${tipo === 'Plazo' ? ' hasta el ' + fmtD(t.mod.nuevaFecha) : ''}.`);
+  closeModal(); commit(); toast('Pedido enviado a SST.');
+}
+function modApprove(id) {
+  const t = T(id), m = t.mod;
+  if (m.tipo === 'Plazo' && m.nuevaFecha) t.limite = m.nuevaFecha;
+  t.estado = 'en_proceso'; t.mod = null; t.modResp = null;
+  addHist(t, `Aprobó la modificación de ${m.tipo.toLowerCase()}${m.tipo === 'Plazo' ? '; nueva fecha límite ' + fmtD(t.limite) : ''}`);
+  notify(t.area, t.puesto, `SST aprobó tu pedido en ${id}. La tarea quedó aceptada${m.tipo === 'Plazo' ? ' con fecha límite ' + fmtD(t.limite) : ''}.`, {t:'tarea', id}, 'check');
+  act('sst', t.area, `${meName()} aprobó el cambio de ${m.tipo.toLowerCase()} en ${id}.`);
+  commit(); toast('Modificación aprobada.');
+}
+function modReject(id) {
+  modal('Rechazar modificación', `<div class="field"><label for="mr-com">Respuesta para el responsable</label><textarea class="inp" id="mr-com" placeholder="Ejemplo: el riesgo es alto, necesitamos mantener la fecha. Busca otro proveedor."></textarea></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="modRejectSave" data-id="${id}">Rechazar pedido</button>`);
+}
+function modRejectSave(id) {
+  const c = val('#mr-com'); if (!c) return mErr('Escribe una respuesta.');
+  const t = T(id); t.estado = 'asignada'; t.modResp = c; t.mod = null; addHist(t, 'Rechazó el pedido de modificación');
+  notify(t.area, t.puesto, `SST rechazó tu pedido de modificación en ${id}.`, {t:'tarea', id}, 'x');
+  act('sst', t.area, `${meName()} rechazó el pedido de modificación de ${id}.`);
+  closeModal(); commit(); toast('Pedido rechazado. La tarea vuelve a esperar aceptación.');
+}
+function stepDo(id, i) {
+  const t = T(id); UI.photos = {}; UI.stepScene = t.escena || 'trabajo';
+  modal(`Paso ${+i + 1}: ${esc(t.pasos[i].t)}`, `<div class="field"><label>Foto de evidencia</label>${photoField('step')}</div><div class="field"><label for="st-com">Comentario</label><textarea class="inp" id="st-com" placeholder="Qué hiciste y en qué estado queda"></textarea></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="stepSave" data-id="${id}" data-v="${i}">${ic('check')}Guardar paso</button>`);
+}
+function stepSave(id, i) {
+  const t = T(id), com = val('#st-com');
+  if (!UI.photos.step) return mErr('Adjunta una foto de evidencia.');
+  if (!com) return mErr('Escribe un comentario.');
+  const s = t.pasos[i]; s.done = true; s.redo = false; s.ev = {foto:UI.photos.step, com, fecha:now(), quien:meName()};
+  addHist(t, `Completó el paso ${+i + 1} con evidencia`);
+  act(cur.role, 'sst', `${meName()} completó el paso ${+i + 1} de ${id} con evidencia.`);
+  UI.photos = {}; closeModal(); commit();
+  toast(t.pasos.every(x => x.done) ? 'Todos los pasos listos. Marca la tarea como terminada.' : `Paso ${+i + 1} completado.`);
+}
+function stepUndo(id, i) { const t = T(id), s = t.pasos[i]; s.done = false; addHist(t, `Reabrió el paso ${+i + 1}`); commit(); }
+function taskDone(id) {
+  const t = T(id), re = t.estado === 'devuelta';
+  t.estado = 'por_validar'; addHist(t, re ? 'Reenvió la tarea corregida' : 'Marcó la tarea como terminada');
+  notify('sst', null, `${meName()} ${re ? 'corrigió y reenvió' : 'terminó'} ${id}. Revisa la evidencia para cerrarla.`, {t:'tarea', id}, 'clip');
+  act(cur.role, 'sst', `${meName()} ${re ? 'reenvió corregida' : 'marcó como terminada'} la tarea ${id} y la envió a validación.`);
+  commit(); toast('Tarea enviada a SST para validación.');
+}
+function taskClose(id) {
+  const t = T(id); t.estado = 'cerrada'; t.cerrada = now(); t.devol = null; addHist(t, 'Validó la evidencia y cerró la tarea');
+  const h = H(t.hallazgo); addHist(h, `Se cerró la tarea ${id}`);
+  notify(t.area, t.puesto, `SST validó y cerró ${id}. ¡Buen trabajo!`, {t:'tarea', id}, 'check');
+  act('sst', t.area, `${meName()} validó la evidencia y cerró ${id}.`);
+  commit();
+  const ts = S.tareas.filter(x => x.hallazgo === h.id);
+  toast(ts.every(x => x.estado === 'cerrada') ? `Tarea cerrada. Ya puedes cerrar el hallazgo <em>${h.id}</em>.` : 'Tarea cerrada.');
+}
+function taskReturn(id) {
+  const t = T(id);
+  modal('Devolver con alerta', `<p class="muted small" style="margin-bottom:14px">El responsable recibirá una alerta indicando que la tarea no se hizo correctamente.</p>
+  <div class="field"><label for="rt-com">Qué no está bien</label><textarea class="inp" id="rt-com" placeholder="Ejemplo: la foto no muestra la señal instalada en el pasillo 4."></textarea></div>
+  <div class="field"><label>Pasos que debe rehacer</label>${t.pasos.map((s, i) => `<label class="row small" style="font-weight:500;padding:4px 0"><input type="checkbox" data-redo="${i}">Paso ${i + 1}: ${esc(s.t)}</label>`).join('')}</div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="taskReturnSave" data-id="${id}">${ic('flag')}Devolver tarea</button>`);
+}
+function taskReturnSave(id) {
+  const c = val('#rt-com'); if (!c) return mErr('Explica qué no está bien.');
+  const t = T(id);
+  document.querySelectorAll('[data-redo]').forEach(cb => { if (cb.checked) { const s = t.pasos[+cb.dataset.redo]; s.done = false; s.redo = true; } });
+  t.estado = 'devuelta'; t.devol = {com:c, fecha:now()}; addHist(t, 'Devolvió la tarea con alerta: no se hizo correctamente');
+  notify(t.area, t.puesto, `SST devolvió ${id}: no se hizo correctamente.`, {t:'tarea', id}, 'flag');
+  act('sst', t.area, `${meName()} devolvió ${id} con una alerta: “${c}”`);
+  closeModal(); commit(); toast('Tarea devuelta con alerta.');
+}
+
+/* ===================== SST: Solicitudes de EPP ===================== */
+function pEpp() {
+  const tabs = [['enviada','Nuevas'],['aprobada','Aprobadas'],['en_espera','En espera'],['entregada','Entregadas'],['rechazada','Rechazadas'],['todas','Todas']];
+  const list = S.epp.filter(e => UI.eTab === 'todas' || e.estado === UI.eTab).sort((a,b) => b.fecha - a.fecha);
+  return `<div class="phead"><div><h1>Solicitudes de EPP</h1><p>Solicitudes de cambio o reposición enviadas por los trabajadores. Al marcar una entrega, el stock se descuenta del inventario.</p></div></div>
+  <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${UI.eTab === k}" data-a="eTab" data-v="${k}">${l}<span class="n">${k === 'todas' ? S.epp.length : S.epp.filter(e => e.estado === k).length}</span></button>`).join('')}</div>
+  <div class="card">${list.map(e => { const it = item(e.item), st = stockState(it), pp = P(e.puesto); return `<div class="req" role="button" tabindex="0" data-a="eppView" data-id="${e.id}"><img src="${e.foto}" alt=""><div><div class="row wrap"><b>${esc(it.nombre)}</b><span class="small muted">${e.id}</span></div><div class="small">${esc(e.persona.nombre)}, ${esc(pp ? pp.nombre : '')}</div><div class="small muted">${esc(e.motivo)}. ${rel(e.fecha)}${e.estado === 'en_espera' ? `. Cambio estimado: ${fmtD(e.espera)}` : ''}</div></div><div class="row">${['enviada','en_espera','aprobada'].includes(e.estado) ? `<span class="chip ${st[1]}">Stock: ${it.stock}</span>` : ''}${chip(EST, e.estado)}</div></div>`; }).join('') || emptyBox('No hay solicitudes en esta pestaña')}</div>`;
+}
+function eppApprove(id) {
+  const e = E(id), it = item(e.item);
+  if (it.stock <= 0) return toast('No hay stock. Pon la solicitud en espera.');
+  e.estado = 'aprobada'; addHist(e, 'Aprobó la solicitud');
+  notify('trabajador', e.puesto, `Tu solicitud ${id} fue aprobada. Acércate a SST con tu EPP anterior para la entrega.`, {t:'epp', id}, 'check');
+  act('sst', 'trabajador', `${meName()} aprobó la solicitud ${id} de ${e.persona.nombre}.`);
+  commit(); eppView(id); toast(`Solicitud <em>${id}</em> aprobada.`);
+}
+function eppWait(id) {
+  modal('Poner en espera', `<p class="muted small" style="margin-bottom:14px">El trabajador verá la fecha estimada en la que podrá recibir su EPP.</p><div class="field"><label for="w-f">Fecha estimada de cambio</label><input class="inp" id="w-f" type="date" value="${isoDate(dIn(7))}"></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="eppWaitSave" data-id="${id}">${ic('pause')}Poner en espera</button>`);
+}
+function eppWaitSave(id) {
+  const f = val('#w-f'); if (!f) return mErr('Elige una fecha.');
+  if (parseDate(f) < sod(now())) return mErr('La fecha no puede ser anterior a hoy.');
+  const e = E(id); e.estado = 'en_espera'; e.espera = parseDate(f); addHist(e, `Puso la solicitud en espera hasta el ${fmtD(e.espera)} por falta de stock`);
+  notify('trabajador', e.puesto, `Tu solicitud ${id} quedó en espera. Fecha estimada de cambio: ${fmtD(e.espera)}.`, {t:'epp', id}, 'pause');
+  act('sst', 'trabajador', `${meName()} puso en espera la solicitud ${id} de ${e.persona.nombre} hasta el ${fmtD(e.espera)}.`);
+  closeModal(); commit(); toast(`Solicitud <em>${id}</em> en espera.`);
+}
+function eppReject(id) {
+  modal('Rechazar solicitud', `<div class="field"><label for="rj-m">Motivo</label><textarea class="inp" id="rj-m" placeholder="El trabajador verá este motivo"></textarea></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="eppRejectSave" data-id="${id}">Rechazar solicitud</button>`);
+}
+function eppRejectSave(id) {
+  const m = val('#rj-m'); if (!m) return mErr('Escribe el motivo.');
+  const e = E(id); e.estado = 'rechazada'; e.rechazo = m; addHist(e, 'Rechazó la solicitud');
+  notify('trabajador', e.puesto, `Tu solicitud ${id} fue rechazada. Motivo: ${m}`, {t:'epp', id}, 'x');
+  act('sst', 'trabajador', `${meName()} rechazó la solicitud ${id} de ${e.persona.nombre}.`);
+  closeModal(); commit(); toast(`Solicitud <em>${id}</em> rechazada.`);
+}
+function eppDeliver(id) {
+  const e = E(id), it = item(e.item);
+  modal('Confirmar entrega', `<p style="margin-bottom:14px">Entregarás <b>${esc(it.nombre)}</b> a ${esc(e.persona.nombre)}. Se descontará 1 unidad del inventario (stock actual: ${it.stock}).</p>
+  <label class="row" style="padding:6px 0"><input type="checkbox" id="dv-1">El trabajador devolvió el EPP anterior</label>
+  <label class="row" style="padding:6px 0"><input type="checkbox" id="dv-2">Firmó el formato físico de entrega</label><div id="m-err" style="margin-top:10px"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="eppDeliverSave" data-id="${id}">${ic('check')}Confirmar entrega</button>`);
+}
+function eppDeliverSave(id) {
+  if (!$('#dv-1').checked || !$('#dv-2').checked) return mErr('Confirma la devolución del EPP anterior y la firma del formato.');
+  const e = E(id), it = item(e.item);
+  if (it.stock <= 0) return mErr('No hay stock para entregar.');
+  it.stock -= 1; it.mov.push({f:now(), tipo:'Salida', cant:1, nota:`Entrega ${id} a ${e.persona.nombre}`, quien:meName()});
+  e.estado = 'entregada'; e.entrega = {fecha:now(), devuelto:true}; addHist(e, 'Marcó como entregada; EPP anterior devuelto y formato firmado');
+  notify('trabajador', e.puesto, `Recibiste tu ${it.nombre} (${id}). Solicitud cerrada.`, {t:'epp', id}, 'check');
+  act('sst', 'trabajador', `${meName()} entregó ${it.nombre} a ${e.persona.nombre} (${id}); el stock bajó a ${it.stock}.`);
+  if (it.stock <= it.min) notify('sst', null, `Stock bajo: ${it.nombre} (${it.stock} en stock, mínimo ${it.min}).`, {t:'inv', id:it.id}, 'box');
+  closeModal(); commit();
+  toast(it.stock <= it.min ? `Entrega registrada. <em>${esc(it.nombre)}</em> quedó en o bajo el mínimo.` : 'Entrega registrada y stock actualizado.');
+}
+
+/* ===================== SST: Inventario ===================== */
+function pInv() {
+  const tabs = ['Todos', ...CATS];
+  const list = S.inventario.filter(i => UI.invTab === 'Todos' || i.cat === UI.invTab);
+  const low = S.inventario.filter(i => i.stock <= i.min);
+  return `<div class="phead"><div><h1>Inventario SST</h1><p>Existencias de EPP, extintores, señalización, botiquines y luces de emergencia. Las alertas aparecen cuando un recurso llega a su mínimo.</p></div><div class="acts"><button class="btn primary" data-a="invNew">${ic('plus')}Agregar recurso</button></div></div>
+  ${low.length ? banner('warn', 'alert', `${low.length} recursos en o bajo el mínimo`, esc(low.map(i => i.nombre).join(', ')) + '.') : ''}
+  <div class="tabs" role="tablist">${tabs.map(t => `<button role="tab" aria-selected="${UI.invTab === t}" data-a="invTab" data-v="${t}">${t}<span class="n">${t === 'Todos' ? S.inventario.length : S.inventario.filter(i => i.cat === t).length}</span></button>`).join('')}</div>
+  <div class="card"><div class="tscroll"><table class="tbl"><thead><tr><th>Recurso</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(i => { const st = stockState(i), pct = Math.min(100, i.stock / Math.max(1, i.min * 2.5) * 100), col = st[1] === 'ok' ? 'var(--bajo)' : st[1] === 'warn' ? 'var(--medio)' : 'var(--alto)'; return `<tr><td><b style="font-weight:600">${esc(i.nombre)}</b></td><td class="small">${i.cat}</td><td><div class="stockbar"><b class="cond" style="font-size:18px;min-width:26px">${i.stock}</b><div class="t"><span style="width:${pct}%;background:${col}"></span></div></div></td><td>${i.min}</td><td><span class="chip ${st[1]}">${st[0]}</span></td><td><div class="row" style="justify-content:flex-end"><button class="btn sm" data-a="invMove" data-id="${i.id}" data-v="in">${ic('plus')}Ingreso</button><button class="btn sm" data-a="invMove" data-id="${i.id}" data-v="out">Salida</button><button class="btn sm ghost" data-a="invMin" data-id="${i.id}">Mínimo</button></div></td></tr>`; }).join('')}</tbody></table></div></div>`;
+}
+function invMove(id, dir) {
+  const i = item(id);
+  modal(`${dir === 'in' ? 'Registrar ingreso' : 'Registrar salida'}: ${esc(i.nombre)}`, `<p class="muted small" style="margin-bottom:14px">Stock actual: ${i.stock}. Mínimo: ${i.min}.</p><div class="grid g2"><div class="field"><label for="mv-q">Cantidad</label><input class="inp" id="mv-q" type="number" min="1" value="${dir === 'in' ? 10 : 1}"></div><div class="field"><label for="mv-n">Nota</label><input class="inp" id="mv-n" placeholder="${dir === 'in' ? 'Ejemplo: compra OC-0420' : 'Ejemplo: reposición de botiquín'}"></div></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="invMoveSave" data-id="${id}" data-v="${dir}">Registrar</button>`);
+}
+function invMoveSave(id, dir) {
+  const i = item(id), q = parseInt(val('#mv-q'), 10);
+  if (!q || q < 1) return mErr('Ingresa una cantidad válida.');
+  if (dir === 'out' && q > i.stock) return mErr('La salida no puede ser mayor al stock.');
+  i.stock += dir === 'in' ? q : -q;
+  i.mov.push({f:now(), tipo: dir === 'in' ? 'Ingreso' : 'Salida', cant:q, nota:val('#mv-n'), quien:meName()});
+  closeModal();
+  const waiting = S.epp.filter(e => e.estado === 'en_espera' && e.item === id);
+  if (dir === 'in' && waiting.length) { notify('sst', null, `Ya hay stock de ${i.nombre} para ${waiting.length} solicitud${waiting.length > 1 ? 'es' : ''} en espera.`, {t:'epp', id:waiting[0].id}, 'box'); }
+  if (dir === 'out' && i.stock <= i.min) notify('sst', null, `Stock bajo: ${i.nombre} (${i.stock} en stock, mínimo ${i.min}).`, {t:'inv', id}, 'box');
+  commit();
+  toast(dir === 'in' && waiting.length ? `Stock actualizado. Hay ${waiting.length} solicitud${waiting.length > 1 ? 'es' : ''} en espera que ya puedes aprobar.` : 'Stock actualizado.');
+}
+function invMin(id) {
+  const i = item(id);
+  modal(`Nivel mínimo: ${esc(i.nombre)}`, `<p class="muted small" style="margin-bottom:14px">Cuando el stock llegue a este nivel, SST recibirá una alerta.</p><div class="field"><label for="mn-v">Stock mínimo</label><input class="inp" id="mn-v" type="number" min="0" value="${i.min}"></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="invMinSave" data-id="${id}">Guardar</button>`);
+}
+function invMinSave(id) { const v = parseInt(val('#mn-v'), 10); if (isNaN(v) || v < 0) return mErr('Ingresa un número válido.'); item(id).min = v; closeModal(); commit(); toast('Mínimo actualizado.'); }
+function invNew() {
+  modal('Agregar recurso', `<div class="field"><label for="in-n">Nombre</label><input class="inp" id="in-n" placeholder="Ejemplo: Mascarilla N95"></div><div class="grid g3"><div class="field"><label for="in-c">Categoría</label><select class="inp" id="in-c">${CATS.map(c => `<option>${c}</option>`).join('')}</select></div><div class="field"><label for="in-s">Stock inicial</label><input class="inp" id="in-s" type="number" min="0" value="0"></div><div class="field"><label for="in-m">Mínimo</label><input class="inp" id="in-m" type="number" min="0" value="5"></div></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="invNewSave">Agregar</button>`, true);
+}
+function invNewSave() {
+  const n = val('#in-n'); if (!n) return mErr('Escribe el nombre del recurso.');
+  S.inventario.push({id:'r' + rid(), cat:val('#in-c'), nombre:n, stock:Math.max(0, parseInt(val('#in-s'), 10) || 0), min:Math.max(0, parseInt(val('#in-m'), 10) || 0), mov:[]});
+  closeModal(); commit(); toast('Recurso agregado.');
+}
+
+/* ===================== SST: Tareas internas ===================== */
+function pInternas() {
+  const cols = [['pendiente','Pendientes'],['curso','En curso'],['hecha','Completadas']];
+  const order = cols.map(c => c[0]);
+  return `<div class="phead"><div><h1>Tareas internas de SST</h1><p>Actividades propias del área, como inspecciones, capacitaciones y simulacros. Solo SST las ve.</p></div><div class="acts"><button class="btn primary" data-a="intNew">${ic('plus')}Nueva tarea interna</button></div></div>
+  <div class="kanban">${cols.map(([k, l]) => { const ts = S.internas.filter(t => t.estado === k).sort((a,b) => a.fecha - b.fecha); return `<section class="kcol"><h3>${l}<span class="n">${ts.length}</span></h3>${ts.map(t => { const d = daysLeft(t.fecha), late = k !== 'hecha' && d < 0, ix = order.indexOf(k); return `<div class="kcard" style="cursor:default"><div class="top"><span>${t.id}</span><span style="${late ? 'color:var(--alto);font-weight:600' : ''}">${late ? 'Vencida' : fmtD(t.fecha)}</span></div><b>${esc(t.titulo)}</b><div class="row"><span class="small muted" style="flex:1">${esc(t.resp)}</span>${ix > 0 ? `<button class="btn sm ghost" data-a="intMove" data-id="${t.id}" data-v="-1" aria-label="Mover a ${cols[ix-1][1]}">${ic('left')}</button>` : ''}${ix < 2 ? `<button class="btn sm" data-a="intMove" data-id="${t.id}" data-v="1">${ix === 0 ? 'Empezar' : 'Completar'}${ic('right')}</button>` : ''}</div></div>`; }).join('') || '<p class="small muted" style="padding:8px 4px 12px">Sin tareas.</p>'}</section>`; }).join('')}</div>`;
+}
+function intNew() {
+  modal('Nueva tarea interna', `<div class="field"><label for="it-t">Tarea</label><input class="inp" id="it-t" placeholder="Ejemplo: Inspección de botiquines"></div><div class="grid g2"><div class="field"><label for="it-r">Responsable</label><input class="inp" id="it-r" value="${esc(meName())}"></div><div class="field"><label for="it-f">Fecha</label><input class="inp" id="it-f" type="date" value="${isoDate(dIn(7))}"></div></div><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="intSave">Agregar</button>`);
+}
+function intSave() { const t = val('#it-t'), f = val('#it-f'); if (!t || !f) return mErr('Completa la tarea y la fecha.'); S.internas.push({id:nextId('I'), titulo:t, resp:val('#it-r') || meName(), fecha:parseDate(f), estado:'pendiente'}); closeModal(); commit(); toast('Tarea interna agregada.'); }
+function intMove(id, d) { const order = ['pendiente','curso','hecha']; const t = S.internas.find(x => x.id === id); t.estado = order[Math.max(0, Math.min(2, order.indexOf(t.estado) + d))]; commit(); }
+
+/* ===================== SST: Puestos y usuarios ===================== */
+function pPuestos() {
+  return `<div class="phead"><div><h1>Puestos y usuarios</h1><p>Las cuentas pertenecen al puesto, no a la persona. Cuando cambia el personal, el reemplazo ingresa con su DNI a la misma cuenta y el historial del puesto se conserva.</p></div></div>
+  ${S.personas.length ? `<div class="card" style="margin-bottom:16px"><div class="chead"><h2>Registros por asignar</h2><span class="chip warn">${S.personas.length}</span></div><table class="tbl"><tbody>${S.personas.map(p => `<tr><td><b style="font-weight:600">${esc(p.nombre)}</b><div class="small muted">DNI ${esc(p.dni)}</div></td><td class="small">${esc(p.correo)}<div class="muted">${esc(p.celular)}</div></td><td class="small">${esc(p.tipo)}<div class="muted">${esc(p.area)}</div></td><td class="small muted">Registrado ${rel(p.fecha)}</td><td style="text-align:right"><button class="btn sm primary" data-a="assign" data-v="${p.dni}">Asignar a un puesto</button></td></tr>`).join('')}</tbody></table></div>` : ''}
+  <div class="card"><div class="chead"><h2>Puestos</h2></div><div class="tscroll"><table class="tbl"><thead><tr><th>Puesto</th><th>Rol</th><th>Persona actual</th><th>Celular</th><th>Desde</th><th></th></tr></thead><tbody>${S.puestos.map(p => `<tr><td><b style="font-weight:600">${esc(p.nombre)}</b><div class="small muted">${p.area}</div></td><td>${roleChip(p.rol)}</td><td>${esc(p.persona.nombre)}<div class="small muted">DNI ${esc(p.persona.dni)}</div></td><td class="small">${esc(p.persona.celular)}</td><td class="small">${fmtDY(p.persona.desde)}</td><td><div class="row" style="justify-content:flex-end"><button class="btn sm" data-a="assign" data-id="${p.id}">Cambiar personal</button><button class="btn sm ghost" data-a="puestoHist" data-id="${p.id}">Historial (${p.historial.length})</button></div></td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function assignModal(dni, pid) {
+  const pend = S.personas;
+  modal('Asignar persona a un puesto', `<div class="field"><label for="as-p">Puesto</label><select class="inp" id="as-p">${S.puestos.map(p => `<option value="${p.id}" ${p.id === pid ? 'selected' : ''}>${esc(p.nombre)} (actual: ${esc(p.persona.nombre)})</option>`).join('')}</select><span class="hint">La persona actual pasará al historial del puesto.</span></div>
+  <div class="field"><label for="as-src">Persona</label><select class="inp" id="as-src">${pend.map(p => `<option value="${p.dni}" ${p.dni === dni ? 'selected' : ''}>${esc(p.nombre)}, DNI ${p.dni} (registrado)</option>`).join('')}<option value="manual" ${!pend.length ? 'selected' : ''}>Ingresar datos manualmente</option></select></div>
+  <div class="grid g2"><div class="field"><label for="as-n">Nombres y apellidos</label><input class="inp" id="as-n"></div><div class="field"><label for="as-d">DNI</label><input class="inp" id="as-d" maxlength="8" inputmode="numeric"></div><div class="field"><label for="as-c">Correo</label><input class="inp" id="as-c"></div><div class="field"><label for="as-t">Celular</label><input class="inp" id="as-t"></div></div><p class="small muted">Los datos manuales solo se usan si eliges “Ingresar datos manualmente”.</p><div id="m-err"></div>`,
+  `<button class="btn" data-a="close">Cancelar</button><button class="btn primary" data-a="assignSave">Asignar</button>`, true);
+}
+function assignSave() {
+  const p = P(val('#as-p')), src = val('#as-src');
+  let np;
+  if (src === 'manual') {
+    np = {nombre:val('#as-n'), dni:val('#as-d'), correo:val('#as-c'), celular:val('#as-t')};
+    if (!np.nombre || !/^\d{8}$/.test(np.dni)) return mErr('Ingresa el nombre y un DNI de 8 dígitos.');
+    if (S.puestos.some(x => x.persona.dni === np.dni)) return mErr('Ese DNI ya ocupa otro puesto.');
+  } else {
+    const r = S.personas.find(x => x.dni === src); np = {nombre:r.nombre, dni:r.dni, correo:r.correo, celular:r.celular};
+    S.personas = S.personas.filter(x => x.dni !== src);
+  }
+  p.historial.unshift({nombre:p.persona.nombre, dni:p.persona.dni, desde:p.persona.desde, hasta:now()});
+  p.persona = Object.assign(np, {desde:now()});
+  act('sst', p.rol, `${meName()} asignó a ${np.nombre} al puesto ${p.nombre}. Usará la misma cuenta y su historial.`);
+  closeModal(); commit(); toast(`${esc(np.nombre)} ahora ocupa el puesto ${esc(p.nombre)}.`);
+}
+function puestoHist(id) {
+  const p = P(id);
+  const rows = [{nombre:p.persona.nombre, dni:p.persona.dni, desde:p.persona.desde, hasta:null}, ...p.historial];
+  modal(`Historial: ${esc(p.nombre)}`, `<table class="tbl"><thead><tr><th>Persona</th><th>DNI</th><th>Desde</th><th>Hasta</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.nombre)}</td><td>${esc(r.dni)}</td><td>${fmtDY(r.desde)}</td><td>${r.hasta ? fmtDY(r.hasta) : '<span class="chip ok">Actual</span>'}</td></tr>`).join('')}</tbody></table>`, `<button class="btn" data-a="close">Cerrar</button>`);
+}
+
+/* ===================== Exportación ===================== */
+const HHEAD = ['Código','Fecha','Hallazgo','Tipo','Ubicación','Área responsable','Nivel de riesgo','Prioridad','Estado','Tareas','Días de atención'];
+function hRows() { return filteredH().map(h => [h.id, fmtDY(h.fecha), h.desc, h.tipo, h.area, h.areaResp, h.riesgo, h.prioridad, HST[h.estado][0], S.tareas.filter(t => t.hallazgo === h.id).map(t => t.id).join(', ') || '-', h.cerradoEn ? Math.max(0, Math.round((h.cerradoEn - h.fecha) / DAY)) : '']); }
+let dlP = null;
+function getDl() { if (!dlP) dlP = (window.claude && typeof window.claude.use === 'function') ? Promise.resolve(window.claude.use('downloads')).catch(() => null) : Promise.resolve(null); return dlP; }
+async function saveFile(name, data, mime) {
+  const dl = await getDl();
+  if (dl) {
+    try { await dl.save({filename:name, data}); toast(`Archivo listo: <em>${name}</em>`); }
+    catch (e) { toast(e && e.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo descargar en esta vista.'); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([data], {type:mime}));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast(`Archivo listo: <em>${name}</em>`);
+}
+async function exportX() {
+  const rows = hRows();
+  if (!rows.length) return toast('No hay hallazgos para exportar con estos filtros.');
+  if (window.XLSX) {
+    const ws = XLSX.utils.aoa_to_sheet([HHEAD, ...rows]);
+    ws['!cols'] = [8,12,44,26,18,18,14,10,12,16,16].map(w => ({wch:w}));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
+    const out = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    return saveFile('hallazgos-sst.xlsx', out, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
+  const csv = '\ufeff' + [HHEAD, ...rows].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(';')).join('\n');
+  return saveFile('hallazgos-sst.csv', csv, 'text/csv');
+}
+async function exportP() {
+  const rows = hRows();
+  if (!rows.length) return toast('No hay hallazgos para exportar con estos filtros.');
+  if (!window.jspdf || !window.jspdf.jsPDF) return toast('El generador de PDF no cargó. Revisa tu conexión.');
+  const doc = new window.jspdf.jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
+  doc.setFontSize(16); doc.text('Reporte de hallazgos SST', 40, 42);
+  doc.setFontSize(10); doc.setTextColor(90); doc.text(`Generado el ${fmtDY(now())} por ${meName()}. ${rows.length} hallazgos.`, 40, 60);
+  doc.autoTable({head:[HHEAD], body:rows, startY:74, styles:{fontSize:8.5, cellPadding:4}, headStyles:{fillColor:[13,118,80]}, alternateRowStyles:{fillColor:[244,246,245]}});
+  return saveFile('hallazgos-sst.pdf', doc.output('arraybuffer'), 'application/pdf');
+}
+
+/* ===================== Overlays ===================== */
+function modal(title, body, foot, wide) {
+  document.getElementById('modal').innerHTML = `<div class="scrim" data-a="scrim"><div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/<[^>]+>/g, ''))}"><div class="mh"><h3>${title}</h3><button class="btn sm ghost" data-a="close" aria-label="Cerrar">${ic('x')}</button></div><div class="mb">${body}</div>${foot ? `<div class="mf">${foot}</div>` : ''}</div></div>`;
+  const f = document.querySelector('#modal .mb input:not([type=file]):not([type=checkbox]), #modal .mb textarea'); if (f) setTimeout(() => f.focus(), 30);
+}
+function closeModal() { document.getElementById('modal').innerHTML = ''; }
+function mErr(m) { const el = document.getElementById('m-err'); if (el) el.innerHTML = banner('bad', 'alert', m, ''); else toast(m); }
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.innerHTML = ic('check') + `<span>${msg}</span>`; const box = document.getElementById('toasts'); box.appendChild(t); while (box.children.length > 2) box.firstChild.remove(); setTimeout(() => t.remove(), 3400); }
+function renderDrawer() {
+  const d = document.getElementById('drawer');
+  d.classList.toggle('open', UI.drawer);
+  if (!UI.drawer) return;
+  d.innerHTML = `<div class="dh"><h3>Actividad entre roles</h3><button class="btn sm ghost" data-a="drawer" aria-label="Cerrar">${ic('x')}</button></div><p class="small muted" style="padding:10px 18px 4px">Cada acción que un rol realiza hacia otro, de la más reciente a la más antigua.</p><div class="db">${S.activity.map(a => `<div class="act"><div class="fl">${roleChip(a.from)}${ic('arrow')}${roleChip(a.to)}<span style="flex:1"></span><small>${rel(a.fecha)}</small></div><p>${esc(a.text)}</p></div>`).join('')}</div>`;
+}
+function tourModal() {
+  modal('Recorrido sugerido', `<p class="muted" style="margin-bottom:14px">Sigue estos pasos para mostrar cómo se relacionan los roles. Cada botón te lleva al rol y a la pantalla indicada.</p><ol class="steps">${TOUR.map((t, i) => `<li class="step" style="padding:12px 0"><span class="num">${i + 1}</span><div><b>${t[1]}</b> ${t[2]}</div><button class="btn sm" data-a="tourGo" data-v="${i}">Ir${ic('right')}</button></li>`).join('')}</ol>`, `<button class="btn" data-a="close">Cerrar</button>`, true);
+}
+function tourGo(i) {
+  closeModal();
+  const dest = [['trabajador','solicitar'],['sst','epp'],['sst','hallazgos'],['mantenimiento','tablero'],['sst','tareas'],[null,null]][i];
+  if (!dest[0]) { if (!cur) { cur = {role:'sst', puesto:'P5'}; } UI.drawer = true; S.actSeen = S.activity.length; commit(); return; }
+  cur = {role:dest[0], puesto:demoPuesto[dest[0]]}; V[dest[0]] = {p:dest[1]};
+  if (dest[1] === 'epp') UI.eTab = 'enviada';
+  if (dest[1] === 'solicitar') UI.photos = {};
+  lastKey = ''; commit(); toast(`Ahora ves la plataforma como <em>${ROLES[dest[0]].label}</em>.`);
+}
+
+/* ===================== Imágenes ===================== */
+function readImg(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onerror = () => rej(new Error('No se pudo leer la imagen'));
+    r.onload = () => { const img = new Image(); img.onload = () => { const m = 960, s = Math.min(1, m / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8)); }; img.onerror = () => rej(new Error('Formato no soportado')); img.src = r.result; };
+    r.readAsDataURL(file);
+  });
+}
+function setPv(key) { const el = document.querySelector(`[data-pv="${key}"]`); if (el) el.innerHTML = `<img src="${UI.photos[key]}" alt="Vista previa de la foto">`; }
+function samplePhoto(key) {
+  let scene = 'generic';
+  if (key === 'sol') scene = ITEM_SCENE[val('#s-item')] || 'generic';
+  if (key === 'hal') scene = HAL_SCENE[val('#h-tipo')] || 'generic';
+  if (key === 'step') scene = UI.stepScene || 'trabajo';
+  UI.photos[key] = photo(scene, 'Foto, ' + fmtDT(now()));
+  setPv(key);
+}
+
+/* ===================== Eventos ===================== */
+const A = {
+  go: (el) => go(el.dataset.v, el.dataset.id),
+  switch: (el) => { const r = el.dataset.v; closeModal(); cur = {role:r, puesto:demoPuesto[r]}; lastKey = ''; commit(); toast(`Ahora ves la plataforma como <em>${ROLES[r].label}</em>.`); },
+  logout: () => { cur = null; commit(); },
+  pick: (el) => { UI.loginPick = el.dataset.v; render(); },
+  login: doLogin, register: registerModal, registerSave,
+  drawer: () => { UI.drawer = !UI.drawer; if (UI.drawer) S.actSeen = S.activity.length; persist(); render(); },
+  tour: tourModal, tourGo: (el) => tourGo(+el.dataset.v),
+  reset: () => modal('Reiniciar demo', '<p>Se borrarán los cambios y se cargarán de nuevo los datos de ejemplo.</p>', '<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="resetDo">Reiniciar</button>'),
+  resetDo: () => { S = seed(); V = DEF_V(); UI.photos = {}; UI.hf = {estado:'',riesgo:'',area:'',resp:'',q:''}; if (cur) cur = {role:cur.role, puesto:demoPuesto[cur.role]}; closeModal(); lastKey = ''; commit(); toast('Demo reiniciada.'); },
+  close: closeModal,
+  samplePhoto: (el) => samplePhoto(el.dataset.v),
+  solSend,
+  eppView: (el) => eppView(el.dataset.id),
+  eppApprove: (el) => eppApprove(el.dataset.id), eppWait: (el) => eppWait(el.dataset.id), eppWaitSave: (el) => eppWaitSave(el.dataset.id),
+  eppReject: (el) => eppReject(el.dataset.id), eppRejectSave: (el) => eppRejectSave(el.dataset.id),
+  eppDeliver: (el) => eppDeliver(el.dataset.id), eppDeliverSave: (el) => eppDeliverSave(el.dataset.id),
+  libTab: (el) => { UI.libTab = el.dataset.v; render(); }, libOpen: (el) => libOpen(el.dataset.id), libEdit: (el) => libEdit(el.dataset.id), libSave: (el) => libSave(el.dataset.id),
+  libDel: (el) => modal('Eliminar contenido', '<p>El contenido dejará de estar disponible para los trabajadores.</p>', `<button class="btn" data-a="close">Cancelar</button><button class="btn danger" data-a="libDelDo" data-id="${el.dataset.id}">Eliminar</button>`),
+  libDelDo: (el) => { S.biblioteca = S.biblioteca.filter(b => b.id !== el.dataset.id); closeModal(); commit(); toast('Contenido eliminado.'); },
+  readAll: () => { myNotifs().forEach(n => n.read = true); commit(); },
+  notifOpen: (el) => notifOpen(el.dataset.id),
+  halNew, halSave, halClose: (el) => { closeModal(); halClose(el.dataset.id); }, halDiscard: (el) => halDiscard(el.dataset.id), halDiscardSave: (el) => halDiscardSave(el.dataset.id),
+  exportX, exportP,
+  taskNew: (el) => taskNew(el.dataset.id), taskSave: (el) => taskSave(el.dataset.id),
+  tTab: (el) => { UI.tTab = el.dataset.v; render(); }, eTab: (el) => { UI.eTab = el.dataset.v; render(); }, invTab: (el) => { UI.invTab = el.dataset.v; render(); },
+  taskAccept: (el) => taskAccept(el.dataset.id), modAsk: (el) => modAsk(el.dataset.id), modSend: (el) => modSend(el.dataset.id),
+  modApprove: (el) => modApprove(el.dataset.id), modReject: (el) => modReject(el.dataset.id), modRejectSave: (el) => modRejectSave(el.dataset.id),
+  stepDo: (el) => stepDo(el.dataset.id, +el.dataset.v), stepSave: (el) => stepSave(el.dataset.id, +el.dataset.v), stepUndo: (el) => stepUndo(el.dataset.id, +el.dataset.v),
+  taskDone: (el) => taskDone(el.dataset.id), taskClose: (el) => taskClose(el.dataset.id), taskReturn: (el) => taskReturn(el.dataset.id), taskReturnSave: (el) => taskReturnSave(el.dataset.id),
+  invMove: (el) => invMove(el.dataset.id, el.dataset.v), invMoveSave: (el) => invMoveSave(el.dataset.id, el.dataset.v), invMin: (el) => invMin(el.dataset.id), invMinSave: (el) => invMinSave(el.dataset.id), invNew, invNewSave,
+  intNew, intSave, intMove: (el) => intMove(el.dataset.id, +el.dataset.v),
+  respFilter: (el) => { UI.hf = {estado:'',riesgo:'',area:'',resp:el.dataset.v,q:''}; go('hallazgos'); },
+  assign: (el) => assignModal(el.dataset.v, el.dataset.id), assignSave, puestoHist: (el) => puestoHist(el.dataset.id)
+};
+document.addEventListener('click', (e) => {
+  const z = e.target.closest('img[data-zoom]');
+  if (z) { const lb = document.getElementById('lb'); lb.innerHTML = `<div class="lightbox" data-lb><img src="${z.src}" alt="${esc(z.alt)}"></div>`; return; }
+  if (e.target.closest('[data-lb]')) { document.getElementById('lb').innerHTML = ''; return; }
+  const el = e.target.closest('[data-a]');
+  if (!el || el.disabled) return;
+  const a = el.dataset.a;
+  if (a === 'scrim') { if (e.target === el) closeModal(); return; }
+  if (A[a]) { e.preventDefault(); A[a](el, e); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (document.getElementById('lb').innerHTML) document.getElementById('lb').innerHTML = ''; else if (document.getElementById('modal').innerHTML) closeModal(); else if (UI.drawer) { UI.drawer = false; render(); } }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"][data-a]')) { e.preventDefault(); e.target.click(); }
+  if (e.key === 'Enter' && e.target.matches('#l-dni, #l-pw')) doLogin();
+});
+document.addEventListener('change', async (e) => {
+  const el = e.target;
+  if (el.matches('[data-file]')) {
+    const f = el.files && el.files[0]; if (!f) return;
+    try { UI.photos[el.dataset.file] = await readImg(f); setPv(el.dataset.file); } catch (err) { toast('No se pudo cargar esa imagen. Prueba con otra.'); }
+  }
+  if (el.id === 't-area') { const s = $('#t-puesto'); if (s) s.innerHTML = puestoOpts(el.value); }
+  if (el.matches('[data-hf]')) { UI.hf[el.dataset.hf] = el.value; updateH(); }
+});
+document.addEventListener('input', (e) => { if (e.target.id === 'h-q') { UI.hf.q = e.target.value; updateH(); } });
+
+load();
+render();
+setTimeout(getDl, 0);
+
+</script>
+</body>
+</html>
