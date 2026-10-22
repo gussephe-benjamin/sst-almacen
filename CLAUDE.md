@@ -194,7 +194,9 @@ make db-up        # levanta Postgres con Docker
 
 make migrate      # aplica migraciones
 
-make seed         # carga catálogos y datos de demostración
+make reset        # BORRA todo: base limpia para uso real (catálogos + cuentas del .env)
+
+make demo         # BORRA todo y carga datos de demostración (solo desarrollo)
 
 make sqlc         # regenera internal/db
 
@@ -225,10 +227,11 @@ make test         # go test ./... y npm test
 
 - **Sin sqlc por ahora.** `sqlc` necesita CGO en Windows. Las consultas viven en `internal/service` y usan pgx directo; las lecturas devuelven JSON generado por Postgres (`json_agg` / `row_to_json`). `internal/db` y `queries/` no se usan todavía.
 - **Servicio en un solo paquete** `internal/service` (un archivo por dominio), en lugar de una carpeta por dominio.
-- **Migraciones y seed** se ejecutan con el mismo binario: `go run ./cmd/api migrate` y `go run ./cmd/api seed`. El seed reinicia todas las tablas.
+- **Migraciones, reset y demo** se ejecutan con el mismo binario: `api migrate`, `api reset --si` y `api demo --si`. Los catálogos base viven en la migración 0003; `reset` y `demo` borran todo y los recargan desde ese archivo. `demo` se niega a correr con `APP_ENV=production`.
 - **Puertos:** API en `:8081` (el `:8080` estaba ocupado en la máquina de desarrollo), Postgres en `:5433`.
 - **Frontend simple:** React 19, Tailwind 4, sin React Hook Form/Zod ni Recharts (formularios controlados y barras en CSS). Se pueden incorporar después.
 - **Rol `admin`** (migración 0002): gestiona cuentas y puestos de los otros cuatro roles (`/api/admin/*`). Las cuentas admin solo se definen en `.env` (`ACCOUNTS_ADMIN`); el admin no puede crear otros admin ni liberar su propio puesto.
-- **Cuentas iniciales en `.env`** (`ACCOUNTS_<ROL>`, formato `DNI|contraseña|Nombres|Puesto|Área|Correo|Celular`). `EnsureAccounts` las crea al iniciar la API y tras el seed si el DNI no existe; nunca modifica cuentas existentes.
+- **Cuentas iniciales en `.env`** (`ACCOUNTS_<ROL>`, formato `DNI|contraseña|Nombres|Puesto|Área|Correo|Celular`). `EnsureAccounts` las crea al iniciar la API y tras `reset`/`demo` si el DNI no existe; nunca modifica cuentas existentes.
 - La sesión dura 7 días. Si la API responde 401 o la cuenta deja de tener puesto, el frontend vuelve al login conservando la URL.
+- **Uso real:** con `APP_ENV=production` la API no inicia si `JWT_SECRET` es débil o falta un admin con contraseña de 10+ caracteres. Login con bloqueo temporal (5 intentos fallidos por DNI, 30 por IP, 15 min). Cookie `Secure` con `COOKIE_SECURE=true`. Contraseñas de 8+ caracteres. La API sirve el frontend compilado desde `STATIC_DIR`.
 - Pendiente: pruebas de integración de permisos en Go, Playwright y Dockerfiles de producción (fase 8).

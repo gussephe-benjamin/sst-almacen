@@ -56,7 +56,7 @@ export function Hallazgos() {
             ))}
           </tbody>
         </table>
-        {q.data?.length === 0 && <p className="muted p-4">No hay hallazgos con esos filtros.</p>}
+        {q.data?.length === 0 && <p className="muted p-4">{qs ? 'No hay hallazgos con esos filtros.' : 'Aún no hay hallazgos. Usa “Registrar hallazgo” después de una inspección.'}</p>}
       </div>
       {nuevo && <NuevoHallazgo cat={cat.data} onClose={() => setNuevo(false)} />}
     </Page>
@@ -88,7 +88,7 @@ function NuevoHallazgo({ cat, onClose }: { cat?: Row; onClose: () => void }) {
         <Field label="Ubicación">{sel('ubicacion_id', areas.filter((a) => a.es_ubicacion))}</Field>
         <Field label="Área responsable">{sel('area_responsable_id', areas.filter((a) => a.puede_resolver_hallazgos))}</Field>
         <Field label="Nivel de riesgo">
-          <select className="inp" value={f.nivel_riesgo} onChange={(e) => setF({ ...f, nivel_riesgo: e.target.value })}><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select>
+          <select className="inp" value={f.nivel_riesgo} onChange={(e) => setF({ ...f, nivel_riesgo: e.target.value, prioridad: { alto: 'alta', medio: 'media', bajo: 'baja' }[e.target.value] ?? f.prioridad })}><option value="alto">Alto</option><option value="medio">Medio</option><option value="bajo">Bajo</option></select>
         </Field>
         <Field label="Prioridad">
           <select className="inp" value={f.prioridad} onChange={(e) => setF({ ...f, prioridad: e.target.value })}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select>
@@ -129,7 +129,7 @@ export function HallazgoDetalle() {
               {abierto && (
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                   {!directo && <Btn className="btn btn-primary" onClick={() => setModal('tarea')}><Plus size={14} /> Crear tarea</Btn>}
-                  {(directo ? h.tareas === 0 : h.tareas > 0) && <Btn className="btn btn-primary" onClick={() => confirmar('¿Cerrar el hallazgo? Esta acción no se puede deshacer.') ? act(`/hallazgos/${id}/cerrar`, {}, 'Hallazgo cerrado.') : undefined}>Cerrar hallazgo</Btn>}
+                  {(directo ? h.tareas === 0 : h.tareas > 0 && h.tareas_cerradas === h.tareas) && <Btn className="btn btn-primary" onClick={() => confirmar('¿Cerrar el hallazgo? Esta acción no se puede deshacer.') ? act(`/hallazgos/${id}/cerrar`, {}, 'Hallazgo cerrado.') : undefined}>Cerrar hallazgo</Btn>}
                   <Btn className="btn btn-danger" onClick={() => setModal('descartar')}>Descartar</Btn>
                 </div>
               )}
@@ -173,6 +173,7 @@ function NuevaTarea({ h, onClose }: { h: Row; onClose: () => void }) {
       <Field label="Título"><input className="inp" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} /></Field>
       <Field label="Indicaciones"><textarea className="inp" rows={3} value={f.indicaciones} onChange={(e) => setF({ ...f, indicaciones: e.target.value })} /></Field>
       <div className="grid grid-cols-2 gap-3">
+        {cat.data && puestos.length === 0 && <Banner kind="warn">No hay puestos de {h.area_responsable} creados. Pide al administrador que cree la cuenta del responsable.</Banner>}
         <Field label="Responsable">
           <select className="inp" value={puesto} onChange={(e) => setF({ ...f, puesto_id: +e.target.value })}>
             {puestos.map((p) => <option key={p.id} value={p.id}>{p.persona ?? 'Sin asignar'} · {p.nombre}</option>)}

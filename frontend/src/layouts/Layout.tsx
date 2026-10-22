@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bell, BookOpen, Box, ClipboardList, HardHat, LayoutDashboard, ListChecks, LogOut, Menu, Search, UserCog, Users } from 'lucide-react'
+import { Bell, BookOpen, Box, ClipboardList, HardHat, KeyRound, LayoutDashboard, ListChecks, LogOut, Menu, Search, UserCog, Users, X } from 'lucide-react'
 import { api, type Me, type Row } from '../api/client'
-import { Toast, useApi } from '../components/ui'
+import { Banner, Btn, Field, Modal, Toast, useAction, useApi } from '../components/ui'
 
 type Item = [string, string, typeof Bell, number?]
 
@@ -11,6 +11,7 @@ export function Layout({ me }: { me: Me }) {
   const qc = useQueryClient()
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
+  const [pwModal, setPwModal] = useState(false)
   const notifs = useApi('/notificaciones', 30_000)
   const unread = (notifs.data ?? []).filter((n: Row) => !n.leida).length
   const dash = useApi<Row>(me.rol === 'sst' ? '/dashboard' : null, 60_000)
@@ -43,7 +44,7 @@ export function Layout({ me }: { me: Me }) {
     <div className="min-h-screen md:flex">
       <header className="flex items-center justify-between bg-slate-900 p-3 text-white md:hidden">
         <span className="font-bold">SST Almacén</span>
-        <button onClick={() => setOpen(!open)}><Menu /></button>
+        <button onClick={() => setOpen(!open)} aria-label={open ? 'Cerrar menú' : 'Abrir menú'}>{open ? <X /> : <Menu />}</button>
       </header>
       <aside className={`${open ? 'block' : 'hidden'} bg-slate-900 text-slate-200 md:sticky md:top-0 md:block md:h-screen md:w-60 md:shrink-0`}>
         <div className="hidden p-4 text-lg font-bold text-white md:block">SST Almacén</div>
@@ -61,11 +62,33 @@ export function Layout({ me }: { me: Me }) {
               {!!n && <span className="rounded-full bg-amber-500 px-1.5 text-xs text-white">{n}</span>}
             </NavLink>
           ))}
+          <button onClick={() => { setOpen(false); setPwModal(true) }} className="flex w-full cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm hover:bg-slate-800"><KeyRound size={16} /> Cambiar contraseña</button>
           <button onClick={logout} className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded px-3 py-2 text-sm hover:bg-slate-800"><LogOut size={16} /> Salir</button>
         </nav>
       </aside>
-      <main className="flex-1"><Outlet /></main>
+      <main className="min-w-0 flex-1"><Outlet /></main>
       <Toast />
+      {pwModal && <CambiarPassword onClose={() => setPwModal(false)} />}
     </div>
+  )
+}
+
+function CambiarPassword({ onClose }: { onClose: () => void }) {
+  const act = useAction()
+  const [f, setF] = useState({ actual: '', nueva: '', repetir: '' })
+  const [err, setErr] = useState('')
+  const set = (k: string, v: string) => { setErr(''); setF({ ...f, [k]: v }) }
+  const save = async () => {
+    if (f.nueva.length < 8) return setErr('La nueva contraseña debe tener al menos 8 caracteres.')
+    if (f.nueva !== f.repetir) return setErr('Las contraseñas nuevas no coinciden.')
+    if (await act('/me/password', { actual: f.actual, nueva: f.nueva }, 'Contraseña actualizada.')) onClose()
+  }
+  return (
+    <Modal title="Cambiar contraseña" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><Btn className="btn btn-primary" onClick={save}>Guardar</Btn></>}>
+      <Field label="Contraseña actual"><input className="inp" type="password" autoComplete="current-password" value={f.actual} onChange={(e) => set('actual', e.target.value)} /></Field>
+      <Field label="Nueva contraseña (mínimo 8 caracteres)"><input className="inp" type="password" autoComplete="new-password" value={f.nueva} onChange={(e) => set('nueva', e.target.value)} /></Field>
+      <Field label="Repite la nueva contraseña"><input className="inp" type="password" autoComplete="new-password" value={f.repetir} onChange={(e) => set('repetir', e.target.value)} /></Field>
+      {err && <Banner kind="err">{err}</Banner>}
+    </Modal>
   )
 }

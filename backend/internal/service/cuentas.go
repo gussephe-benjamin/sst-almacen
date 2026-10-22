@@ -118,8 +118,8 @@ func (s *Svc) CrearCuenta(ctx context.Context, a *Actor, in CuentaIn) (int, erro
 		return 0, Bad("dni_invalido", "El DNI debe tener 8 dígitos.")
 	case in.Nombres == "":
 		return 0, Bad("datos_incompletos", "Ingresa los nombres y apellidos.")
-	case len(in.Password) < 6:
-		return 0, Bad("password_corta", "La contraseña debe tener al menos 6 caracteres.")
+	case len(in.Password) < 8:
+		return 0, Bad("password_corta", "La contraseña debe tener al menos 8 caracteres.")
 	case in.PuestoID == 0 && !rolesGestionables[in.Rol]:
 		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento o Administración.")
 	case in.PuestoID == 0 && (in.PuestoNombre == "" || in.AreaID == 0):
@@ -202,8 +202,8 @@ func (s *Svc) LiberarPuesto(ctx context.Context, a *Actor, puestoID int) error {
 }
 
 func (s *Svc) ResetPassword(ctx context.Context, a *Actor, userID int, pw string) error {
-	if len(pw) < 6 {
-		return Bad("password_corta", "La contraseña debe tener al menos 6 caracteres.")
+	if len(pw) < 8 {
+		return Bad("password_corta", "La contraseña debe tener al menos 8 caracteres.")
 	}
 	return s.Tx(ctx, func(tx pgx.Tx) error {
 		var nombre string
@@ -224,5 +224,28 @@ func (s *Svc) ResetPassword(ctx context.Context, a *Actor, userID int, pw string
 			return nil
 		}
 		return Hist(ctx, tx, a, "puesto", *puestoID, "Restableció la contraseña de "+nombre)
+	})
+}
+
+// CambiarPassword permite a cualquier usuario cambiar su propia contraseña.
+func (s *Svc) CambiarPassword(ctx context.Context, a *Actor, actual, nueva string) error {
+	if len(nueva) < 8 {
+		return Bad("password_corta", "La nueva contraseña debe tener al menos 8 caracteres.")
+	}
+	if nueva == actual {
+		return Bad("password_igual", "La nueva contraseña debe ser distinta de la actual.")
+	}
+	return s.Tx(ctx, func(tx pgx.Tx) error {
+		var hash string
+		if err := tx.QueryRow(ctx, `SELECT password_hash FROM usuarios WHERE id=$1 FOR UPDATE`, a.UserID).Scan(&hash); err != nil {
+			return notFound(err)
+		}
+		if bcrypt.CompareHashAndPassword([]byte(hash), []byte(actual)) != nil {
+			return Bad("credenciales", "La contraseña actual no es correcta.")
+		}
+		if _, err := tx.Exec(ctx, `UPDATE usuarios SET password_hash=$2 WHERE id=$1`, a.UserID, hashPw(nueva)); err != nil {
+			return err
+		}
+		return Hist(ctx, tx, a, "puesto", a.PuestoID, "Cambió su contraseña")
 	})
 }

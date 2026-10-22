@@ -33,8 +33,8 @@ type AppError struct {
 func (e *AppError) Error() string { return e.Message }
 
 func Err(status int, code, msg string) *AppError { return &AppError{status, code, msg} }
-func Bad(code, msg string) *AppError            { return Err(http.StatusBadRequest, code, msg) }
-func Conflict(code, msg string) *AppError       { return Err(http.StatusConflict, code, msg) }
+func Bad(code, msg string) *AppError             { return Err(http.StatusBadRequest, code, msg) }
+func Conflict(code, msg string) *AppError        { return Err(http.StatusConflict, code, msg) }
 
 var (
 	ErrNotFound  = Err(http.StatusNotFound, "no_encontrado", "No se encontró el registro.")

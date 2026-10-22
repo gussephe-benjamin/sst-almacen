@@ -70,7 +70,7 @@ func (a *API) issue(w http.ResponseWriter, userID int) {
 	tok, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userID, "exp": time.Now().Add(sessionTTL).Unix(),
 	}).SignedString([]byte(a.Secret))
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: tok, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds())})
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: tok, Path: "/", HttpOnly: true, Secure: a.CookieSecure, SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds())})
 }
 
 func (a *API) auth(next http.Handler) http.Handler {

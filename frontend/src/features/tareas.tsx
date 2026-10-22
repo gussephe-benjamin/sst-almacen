@@ -26,6 +26,7 @@ export function Tareas({ me }: { me: Me }) {
             <div key={g}>
               <h2 className="mb-2 text-sm font-semibold text-slate-600">{l} ({all.filter((t) => GRUPOS[g].includes(t.estado)).length})</h2>
               <div className="space-y-2">
+                {!q.isLoading && all.filter((t) => GRUPOS[g].includes(t.estado)).length === 0 && <p className="rounded-md border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500">Sin tareas</p>}
                 {all.filter((t) => GRUPOS[g].includes(t.estado)).map((t) => (
                   <Link key={t.id} to={`/tareas/${t.id}`} className="card block hover:border-blue-300">
                     <div className="flex justify-between text-xs text-slate-500"><span>{t.codigo} · {t.hallazgo_codigo}</span><Chip s={t.estado} /></div>

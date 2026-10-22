@@ -9,12 +9,12 @@ const ROL_CHIP: Record<string, string> = { trabajador: 'enviada', sst: 'aprobada
 
 const genPassword = () => {
   const c = 'abcdefghjkmnpqrstuvwxyz23456789'
-  return Array.from(crypto.getRandomValues(new Uint32Array(8)), (n) => c[n % c.length]).join('')
+  return Array.from(crypto.getRandomValues(new Uint32Array(10)), (n) => c[n % c.length]).join('')
 }
 
 function PasswordField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <Field label="Contraseña inicial (mínimo 6 caracteres)">
+    <Field label="Contraseña inicial (mínimo 8 caracteres)">
       <div className="flex gap-2">
         <input className="inp font-mono" value={value} onChange={(e) => onChange(e.target.value)} />
         <button type="button" className="btn" title="Generar contraseña" onClick={() => onChange(genPassword())}><RefreshCw size={14} /> Generar</button>
@@ -150,7 +150,7 @@ function CrearCuenta({ init, puestos, areas, onClose, onDone }: {
   const save = async () => {
     if (!/^\d{8}$/.test(f.dni)) return setErr('El DNI debe tener 8 dígitos.')
     if (!f.nombres.trim()) return setErr('Ingresa los nombres y apellidos.')
-    if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.')
+    if (f.password.length < 8) return setErr('La contraseña debe tener al menos 8 caracteres.')
     if (!f.puesto_id && (!f.puesto_nombre.trim() || !f.area_id)) return setErr('Indica el nombre del puesto nuevo y su área.')
     if (elegido?.persona && !confirmar(`${elegido.persona} saldrá del puesto "${elegido.nombre}" y ya no podrá ingresar. ¿Continuar?`)) return
     if (await act('/admin/cuentas', f, 'Cuenta creada.')) onDone({ nombre: f.nombres, dni: f.dni, password: f.password })

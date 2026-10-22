@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Row } from '../api/client'
-import { Btn, Banner, Field, Loading, Modal, Page, Tabs, useAction, useApi } from '../components/ui'
+import { Btn, plural, Banner, Field, Loading, Modal, Page, Tabs, useAction, useApi } from '../components/ui'
 
 export function Inventario() {
   const cat = useApi<Row>('/catalogos')
@@ -17,7 +17,7 @@ export function Inventario() {
   return (
     <Page title="Inventario" actions={<Btn className="btn btn-primary" onClick={() => setNuevo(true)}>Nuevo recurso</Btn>}>
       <Tabs value={tab} onChange={setTab} tabs={[['', 'Todos'], ...((cat.data?.categorias ?? []) as Row[]).map((c): [string, string] => [c.nombre, c.nombre])]} />
-      {low.length > 0 && <Banner kind="warn"><b>{low.length} recursos en o bajo el mínimo:</b> {low.map((r: Row) => r.nombre).join(', ')}.</Banner>}
+      {low.length > 0 && <Banner kind="warn"><b>{plural(low.length, 'recurso', 'recursos')} en o bajo el mínimo:</b> {low.map((r: Row) => r.nombre).join(', ')}.</Banner>}
       <Loading q={q} />
       <div className="card overflow-x-auto p-0">
         <table className="tbl">
@@ -38,6 +38,7 @@ export function Inventario() {
             ))}
           </tbody>
         </table>
+        {q.data?.length === 0 && <p className="muted p-4">{tab ? `No hay recursos en ${tab}.` : 'Aún no hay recursos. Registra el primero con “Nuevo recurso”.'}</p>}
       </div>
       {mov && (
         <Modal title={`${mov.tipo === 'ingreso' ? 'Ingreso' : 'Salida'}: ${mov.r.nombre}`} onClose={() => setMov(null)}

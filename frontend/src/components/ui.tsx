@@ -102,6 +102,9 @@ const LABELS: Record<string, [string, string]> = {
 }
 export const label = (s: string) => LABELS[s]?.[0] ?? s
 
+/** "1 recurso", "3 recursos". */
+export const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+
 export function Chip({ s, children }: { s?: string; children?: ReactNode }) {
   const cls = (s && LABELS[s]?.[1]) || 'bg-slate-100 text-slate-700'
   return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{children ?? label(s ?? '')}</span>

@@ -30,7 +30,7 @@ const hallazgoSQL = `SELECT h.id, 'H-' || lpad(h.id::text, 3, '0') AS codigo, h.
 	JOIN areas ar ON ar.id = h.area_responsable_id JOIN usuarios u ON u.id = h.responsable_id`
 
 type HallazgoFiltro struct {
-	Estado, Riesgo, Q string
+	Estado, Riesgo, Q      string
 	Ubicacion, Responsable int
 }
 

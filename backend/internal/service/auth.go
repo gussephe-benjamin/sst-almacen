@@ -29,8 +29,8 @@ func (s *Svc) Register(ctx context.Context, in RegisterIn) error {
 	if strings.TrimSpace(in.Nombres) == "" || in.Correo == "" || in.Celular == "" {
 		return Bad("datos_incompletos", "Completa nombres, correo y celular.")
 	}
-	if len(in.Password) < 6 {
-		return Bad("password_corta", "La contraseña debe tener al menos 6 caracteres.")
+	if len(in.Password) < 8 {
+		return Bad("password_corta", "La contraseña debe tener al menos 8 caracteres.")
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
 	var area any
@@ -73,7 +73,7 @@ func (s *Svc) Login(ctx context.Context, dni, password string) (int, error) {
 		return 0, Err(http.StatusUnauthorized, "credenciales", "La contraseña no es correcta.")
 	}
 	if estado == "pendiente" {
-		return 0, Err(http.StatusForbidden, "pendiente", "Tu registro está pendiente: SST aún no te asigna un puesto.")
+		return 0, Err(http.StatusForbidden, "pendiente", "Tu registro está pendiente: aún no te asignan un puesto.")
 	}
 	if estado == "inactivo" {
 		return 0, Err(http.StatusForbidden, "inactivo", "Ya no ocupas un puesto. Si es un error, comunícate con el administrador.")
@@ -91,7 +91,7 @@ func (s *Svc) LoadActor(ctx context.Context, userID int) (*Actor, error) {
 		JOIN puestos p ON p.id = ap.puesto_id WHERE u.id = $1 AND u.estado = 'activo'`, userID).
 		Scan(&a.UserID, &a.DNI, &a.Nombre, &a.PuestoID, &a.PuestoNombre, &a.Rol, &a.AreaID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, Err(http.StatusForbidden, "pendiente", "Tu registro está pendiente: SST aún no te asigna un puesto.")
+		return nil, Err(http.StatusForbidden, "pendiente", "Tu registro está pendiente: aún no te asignan un puesto.")
 	}
 	return a, err
 }

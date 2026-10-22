@@ -18,6 +18,7 @@ export function SolicitarEpp() {
   return (
     <Page title="Solicitar cambio de EPP" sub="Adjunta una foto del EPP dañado. SST revisará tu solicitud.">
       <div className="card max-w-md space-y-3">
+        {cat.data && !cat.data.epp?.length && <Banner kind="warn">Aún no hay EPP registrados en el inventario. Avisa al área de SST.</Banner>}
         <Field label="EPP">
           <select className="inp" value={f.recurso_id} onChange={(e) => setF({ ...f, recurso_id: +e.target.value })}>
             <option value={0}>Selecciona…</option>
@@ -58,7 +59,7 @@ export function MisSolicitudes() {
   return (
     <Page title="Mis solicitudes" actions={<Link className="btn btn-primary" to="/solicitar">Nueva solicitud</Link>}>
       <Loading q={q} />
-      {q.data?.length === 0 && <p className="muted">Aún no tienes solicitudes.</p>}
+      {q.data?.length === 0 && <div className="card text-center"><p className="muted mb-3">Aún no tienes solicitudes.</p><Link className="btn btn-primary" to="/solicitar">Solicitar un EPP</Link></div>}
       <div className="space-y-2">
         {(q.data ?? []).map((e: Row) => (
           <Link key={e.id} to={`/epp/${e.id}`} className="card block hover:border-blue-300">
@@ -95,7 +96,7 @@ export function EppDetalle({ me }: { me: Me }) {
             {e.estado === 'en_espera' && <Banner kind="warn">En espera. Fecha estimada de cambio: {fmtD(e.fecha_espera)}.</Banner>}
             {e.estado === 'rechazada' && <Banner kind="err">Rechazada: {e.motivo_rechazo}</Banner>}
             {e.estado === 'aprobada' && !sst && <Banner kind="ok">Aprobada. Acércate a SST para la entrega.</Banner>}
-            {e.estado === 'entregada' && <Banner kind="ok">Entregada el {fmtDT(e.entregada_at)}.</Banner>}
+            {e.estado === 'entregada' && <Banner kind="ok">Entregada el {fmtDT(e.entregada_at)}</Banner>}
             <dl className="grid grid-cols-[110px_1fr] gap-1 text-sm">
               {sst && <><dt className="text-slate-500">Trabajador</dt><dd>{e.trabajador}</dd><dt className="text-slate-500">Puesto</dt><dd>{e.puesto}</dd><dt className="text-slate-500">DNI</dt><dd>{e.dni}</dd></>}
               <dt className="text-slate-500">Motivo</dt><dd>{e.motivo}</dd>
@@ -129,7 +130,8 @@ export function EppDetalle({ me }: { me: Me }) {
         </Modal>
       )}
       {modal === 'entregar' && (
-        <Modal title="Registrar entrega" onClose={() => setModal('')} footer={<Btn className="btn btn-primary" onClick={() => run('entregar', 'Entrega registrada. El stock bajó en 1.')}>Confirmar entrega</Btn>}>
+        <Modal title="Registrar entrega" onClose={() => setModal('')} footer={<Btn className="btn btn-primary" disabled={!v.epp_anterior_devuelto || !v.formato_firmado} onClick={() => run('entregar', 'Entrega registrada. El stock bajó en 1.')}>Confirmar entrega</Btn>}>
+          <p className="muted">Marca ambas casillas para confirmar la entrega.</p>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.epp_anterior_devuelto} onChange={(x) => setV({ ...v, epp_anterior_devuelto: x.target.checked })} /> El trabajador devolvió el EPP anterior</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={v.formato_firmado} onChange={(x) => setV({ ...v, formato_firmado: x.target.checked })} /> Firmó el formato físico de entrega</label>
         </Modal>

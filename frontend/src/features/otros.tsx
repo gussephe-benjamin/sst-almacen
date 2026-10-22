@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Me, Row } from '../api/client'
-import { Btn, Banner, Chip, Field, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
+import { Btn, plural, Banner, Chip, Field, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
 
 // ---------- Dashboard ----------
 
 function Bars({ rows, onClick }: { rows: Row[]; onClick?: (r: Row) => void }) {
+  if (!rows.length) return <p className="muted">Sin datos todavía.</p>
   const max = Math.max(1, ...rows.map((r) => r.cantidad))
   return (
     <div className="space-y-2">
@@ -45,11 +46,12 @@ export function Dashboard() {
         <div className="mb-4 card">
           <h2 className="mb-2 font-semibold">Pendientes</h2>
           <ul className="space-y-1 text-sm">
-            {d.epp_nuevas > 0 && <li><Link className="text-blue-700" to="/epp">{d.epp_nuevas} solicitudes de EPP por revisar</Link></li>}
-            {d.tareas_por_validar > 0 && <li><Link className="text-blue-700" to="/tareas">{d.tareas_por_validar} tareas por validar</Link></li>}
-            {d.modificaciones > 0 && <li><Link className="text-blue-700" to="/tareas">{d.modificaciones} solicitudes de modificación</Link></li>}
-            {d.bajo_minimo.length > 0 && <li><Link className="text-blue-700" to="/inventario">{d.bajo_minimo.length} recursos en o bajo el mínimo: {d.bajo_minimo.slice(0, 3).map((r: Row) => r.nombre).join(', ')}</Link></li>}
+            {d.epp_nuevas > 0 && <li><Link className="text-blue-700" to="/epp">{plural(d.epp_nuevas, 'solicitud', 'solicitudes')} de EPP por revisar</Link></li>}
+            {d.tareas_por_validar > 0 && <li><Link className="text-blue-700" to="/tareas">{plural(d.tareas_por_validar, 'tarea', 'tareas')} por validar</Link></li>}
+            {d.modificaciones > 0 && <li><Link className="text-blue-700" to="/tareas">{plural(d.modificaciones, 'solicitud', 'solicitudes')} de modificación</Link></li>}
+            {d.bajo_minimo.length > 0 && <li><Link className="text-blue-700" to="/inventario">{plural(d.bajo_minimo.length, 'recurso', 'recursos')} en o bajo el mínimo: {d.bajo_minimo.slice(0, 3).map((r: Row) => r.nombre).join(', ')}</Link></li>}
           </ul>
+          {!d.epp_nuevas && !d.tareas_por_validar && !d.modificaciones && !d.bajo_minimo.length && <p className="muted">No hay pendientes. Todo al día.</p>}
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="card"><h2 className="mb-3 font-semibold">Por área responsable</h2><Bars rows={d.por_area} onClick={(r) => nav(`/hallazgos?responsable=${r.id}`)} /></div>
@@ -67,7 +69,7 @@ export function Dashboard() {
                   <div className="flex w-full flex-col-reverse" style={{ height: `${(120 * (m.alto + m.medio + m.bajo)) / maxMes}px` }}>
                     <div className="bg-red-500" style={{ flex: m.alto }} /><div className="bg-amber-400" style={{ flex: m.medio }} /><div className="bg-emerald-500" style={{ flex: m.bajo }} />
                   </div>
-                  <span className="mt-1 text-xs text-slate-500">{m.mes}</span>
+                  <span className="mt-1 text-xs text-slate-500" title={`${m.alto} alto · ${m.medio} medio · ${m.bajo} bajo`}>{new Date(m.mes + '-15').toLocaleDateString('es-PE', { month: 'short', year: '2-digit' })}</span>
                 </div>
               ))}
             </div>
@@ -95,6 +97,7 @@ export function Biblioteca({ me }: { me: Me }) {
       actions={sst && <Btn className="btn btn-primary" onClick={() => setEdit({ tipo: 'afiche', codigo: '', titulo: '', resumen: '', cuerpo: '', imagen_id: '' })}>Publicar</Btn>}>
       <Tabs value={tab} onChange={setTab} tabs={[['', 'Todo'], ...(TIPOS as [string, string][])]} />
       <Loading q={q} />
+      {q.data?.length === 0 && <p className="muted">{sst ? 'Aún no hay contenidos. Usa “Publicar” para compartir afiches y procedimientos.' : 'Aún no hay contenidos publicados.'}</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(q.data ?? []).map((b: Row) => (
           <div key={b.id} className="card cursor-pointer hover:border-blue-300" onClick={() => setVer(b)}>

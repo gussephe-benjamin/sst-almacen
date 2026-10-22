@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -14,12 +15,39 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"sst-almacen/internal/storage"
+	"sst-almacen/migrations"
 )
 
 // ago devuelve una expresión SQL para "hace n días" (n puede ser negativo: futuro).
 const ago = `now() - ($%d::float * interval '1 day')`
 
-// seed reinicia la base y carga catálogos y los datos de demostración del prototipo.
+// resetDB borra todos los datos y archivos subidos y vuelve a cargar los catálogos base.
+func resetDB(ctx context.Context, tx pgx.Tx, files *storage.Store) error {
+	var tables []string
+	rows, err := tx.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'schema_migrations'`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var t string
+		rows.Scan(&t)
+		tables = append(tables, t)
+	}
+	rows.Close()
+	if _, err := tx.Exec(ctx, `TRUNCATE `+strings.Join(tables, ",")+` RESTART IDENTITY CASCADE`); err != nil {
+		return err
+	}
+	catalogos, err := migrations.FS.ReadFile("0003_catalogos.up.sql")
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, string(catalogos)); err != nil {
+		return err
+	}
+	return os.RemoveAll(files.Dir)
+}
+
+// seed reinicia la base y carga los datos de demostración del prototipo (solo para desarrollo).
 // Todos los usuarios de demostración usan la contraseña "demo1234".
 func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
@@ -28,36 +56,12 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 				panic(err.Error() + "\n" + sql)
 			}
 		}
-		var tables []string
-		rows, _ := tx.Query(ctx, `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> 'schema_migrations'`)
-		for rows.Next() {
-			var t string
-			rows.Scan(&t)
-			tables = append(tables, t)
+		if err := resetDB(ctx, tx, files); err != nil {
+			return err
 		}
-		rows.Close()
-		ex(`TRUNCATE ` + strings.Join(tables, ",") + ` RESTART IDENTITY CASCADE`)
-
-		// Áreas (1-5 ubicaciones, 6-9 responsables)
-		for _, n := range []string{"Almacén A", "Almacén B", "Zona de carga", "Patio de maniobras", "Oficinas"} {
-			tipo := "operativa"
-			if n == "Oficinas" {
-				tipo = "administrativa"
-			}
-			ex(`INSERT INTO areas (nombre, tipo, es_ubicacion) VALUES ($1,$2,true)`, n, tipo)
-		}
-		for _, n := range []string{"Mantenimiento", "Administración", "SST", "Calidad"} {
-			ex(`INSERT INTO areas (nombre, tipo, puede_resolver_hallazgos) VALUES ($1,'administrativa',true)`, n)
-		}
-		ex(`INSERT INTO areas (nombre, tipo) VALUES ('Dirección','administrativa')`)
+		// Mismo orden que la migración de catálogos (ids 1..n).
 		tipos := []string{"Almacenamiento y estanterías", "Orden y limpieza", "Equipos de emergencia", "Señalización", "Instalaciones eléctricas",
 			"Tránsito de montacargas", "Infraestructura", "Uso de EPP", "Otro"}
-		for _, n := range tipos {
-			ex(`INSERT INTO tipos_hallazgo (nombre) VALUES ($1)`, n)
-		}
-		for _, n := range []string{"EPP", "Extintores", "Señalización", "Botiquines", "Luces de emergencia"} {
-			ex(`INSERT INTO categorias_recurso (nombre) VALUES ($1)`, n)
-		}
 
 		// Puestos (ids 1-7)
 		for _, p := range [][]any{
@@ -290,4 +294,5 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		return nil
 	})
 }
+
 var sprintf = fmt.Sprintf

@@ -75,7 +75,13 @@ func (s *Svc) TareaCrear(ctx context.Context, a *Actor, hallazgoID int, in Tarea
 		if err := Hist(ctx, tx, a, "hallazgo", hallazgoID, "Creó la tarea "+Code("T", id)); err != nil {
 			return err
 		}
-		if err := Hist(ctx, tx, a, "tarea", id, "Creó la tarea y la asignó"); err != nil {
+		var persona string
+		tx.QueryRow(ctx, `SELECT u.nombres FROM asignaciones_puesto ap JOIN usuarios u ON u.id = ap.usuario_id
+			WHERE ap.puesto_id = $1 AND ap.hasta IS NULL`, in.PuestoID).Scan(&persona)
+		if persona == "" {
+			persona = "el puesto vacante"
+		}
+		if err := Hist(ctx, tx, a, "tarea", id, "Creó la tarea y la asignó a "+persona); err != nil {
 			return err
 		}
 		return Notify(ctx, tx, rol, in.PuestoID, fmt.Sprintf("%s te asignó %s: %s.", a.Nombre, Code("T", id), in.Titulo), "tarea", id)

@@ -1,37 +1,81 @@
 # SST Almacén
 
-Plataforma de SST para almacén: solicitudes de EPP, inventario, hallazgos, tareas a áreas con evidencia, biblioteca, puestos y dashboard.
+Plataforma de Seguridad y Salud en el Trabajo para un almacén: solicitudes de EPP con foto, inventario con alertas de stock, hallazgos de inspección, tareas a Mantenimiento y Administración con evidencia por paso, biblioteca, notificaciones y dashboard.
+
+Guía de uso por rol: [USO.md](USO.md).
 
 ## Requisitos
 
-Go 1.22+, Node 20+, Docker.
+- Go 1.22+
+- Node 20+
+- Docker (para PostgreSQL 16)
+- `make` (opcional; cada comando también se puede correr a mano)
 
-## Arranque
+## Puesta en marcha (uso real)
+
+1. **Configura el `.env`** a partir de la plantilla:
+   ```
+   cp .env.example .env
+   ```
+   - `JWT_SECRET`: valor aleatorio de al menos 32 caracteres.
+   - `ACCOUNTS_ADMIN`: el DNI real, la contraseña (10 caracteres o más) y el nombre de quien administrará la plataforma.
+   - Deja `APP_ENV=production`. Si publicas la app por HTTPS, usa `COOKIE_SECURE=true`.
+2. **Levanta la base y prepárala:**
+   ```
+   make db-up
+   make migrate
+   ```
+   `migrate` crea las tablas y los catálogos base: áreas, tipos de hallazgo y categorías de inventario.
+3. **Compila y arranca:**
+   ```
+   make build
+   make start
+   ```
+   La aplicación queda en `http://<servidor>:8081`. Al iniciar, la API crea las cuentas del `.env` que aún no existan.
+4. **Primer ingreso:** entra con el DNI del administrador. En **Cuentas y puestos**, crea las cuentas del personal (SST, Mantenimiento, Administración y trabajadores). También puedes dejar que el personal se registre con su DNI y asignarlo después.
+5. **SST registra el inventario** (EPP, extintores, señalización, etc.) para que los trabajadores puedan pedir EPP.
+
+> Con `APP_ENV=production` la API no inicia si el `JWT_SECRET` es débil o si no hay un administrador con una contraseña segura.
+
+### Reiniciar todo
 
 ```
-make db-up      # Postgres 16 en Docker (puerto 5433)
-make migrate    # crea el esquema
-make seed       # reinicia la base y carga los datos de demostración
-make api        # backend en :8081
-make web        # frontend en :5173 (proxy de /api a :8081)
-make test       # pruebas de las máquinas de estado
+make reset
 ```
-
-Abre http://localhost:5173. Usuarios de demostración (contraseña `demo1234`, salvo el admin):
-
-| Rol | Persona | DNI |
-|---|---|---|
-| Administrador | Administrador del sistema | 10000001 (contraseña `admin1234`) |
-| Trabajador | Luis Quispe | 71234567 |
-| Trabajador | Pedro Huamán | 70456123 |
-| SST | Ana Torres | 45678912 |
-| Mantenimiento | Carlos Mendoza | 43219876 |
-| Administración | Rosa Chávez | 46781234 |
-| Pendiente de puesto | Kevin Salazar | 74561230 |
+Borra **todos** los datos y fotos, y deja la base como recién instalada (catálogos + cuentas del `.env`). No se puede deshacer.
 
 ## Cuentas en el `.env`
 
-Copia `.env.example` a `.env`. Las variables `ACCOUNTS_ADMIN`, `ACCOUNTS_SST`, `ACCOUNTS_TRABAJADOR`, `ACCOUNTS_MANTENIMIENTO` y `ACCOUNTS_ADMINISTRACION` definen las cuentas que deben existir siempre, con el formato `DNI|contraseña|Nombres|Puesto|Área|Correo|Celular` (varias cuentas separadas por `;`).
+Las variables `ACCOUNTS_ADMIN`, `ACCOUNTS_SST`, `ACCOUNTS_TRABAJADOR`, `ACCOUNTS_MANTENIMIENTO` y `ACCOUNTS_ADMINISTRACION` definen cuentas que deben existir siempre. Formato (varias cuentas separadas por `;`):
 
-- Se crean al iniciar la API y después de `make seed`, solo si el DNI aún no existe. Si ya existe, no se modifica.
-- Las cuentas de **administrador** solo se crean desde el `.env`. El administrador gestiona desde la app (menú *Cuentas y puestos*) las cuentas de Trabajador, SST, Mantenimiento y Administración: crear cuentas y puestos, asignar registros pendientes, cambiar al personal de un puesto, liberar puestos y restablecer contraseñas.
+```
+DNI|contraseña|Nombres|Puesto|Área|Correo|Celular
+```
+
+- Se crean al iniciar la API solo si el DNI aún no existe. Si ya existe, no se modifica (la contraseña puede haberse cambiado desde la app).
+- Las cuentas de **administrador** solo se crean así. El administrador gestiona las demás desde la app.
+
+## Desarrollo
+
+```
+make db-up && make migrate
+make demo   # BORRA todo y carga datos de demostración (contraseña demo1234)
+make api    # backend en :8081
+make web    # frontend con recarga en :5173
+make test
+```
+
+`make demo` se niega a correr con `APP_ENV=production`; para desarrollo cambia el `.env` a `APP_ENV=development`.
+
+## Seguridad incluida
+
+- Sesión en cookie `httpOnly` de 7 días; opción `Secure` para HTTPS.
+- Bloqueo temporal tras 5 intentos fallidos por DNI (30 por IP) durante 15 minutos.
+- Contraseñas con bcrypt, de 8 caracteres como mínimo (10 para administradores).
+- Permisos validados en el servidor: un trabajador solo ve sus solicitudes, cada área solo sus tareas, y solo SST ve el inventario y los hallazgos.
+- Las fotos se guardan en disco (`UPLOAD_DIR`) y se sirven solo a quien puede ver la entidad dueña de la foto.
+
+## Respaldo
+
+- **Base de datos:** `docker exec sst-project-db-1 pg_dump -U sst sst > respaldo.sql`
+- **Fotos:** copia la carpeta `backend/data/uploads`.

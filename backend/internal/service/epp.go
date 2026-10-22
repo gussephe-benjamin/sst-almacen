@@ -72,10 +72,10 @@ func (s *Svc) EppDetalle(ctx context.Context, a *Actor, id int) (map[string]any,
 }
 
 type EppAccionIn struct {
-	Fecha     string `json:"fecha"`
-	Motivo    string `json:"motivo"`
-	Devuelto  bool   `json:"epp_anterior_devuelto"`
-	Firmado   bool   `json:"formato_firmado"`
+	Fecha    string `json:"fecha"`
+	Motivo   string `json:"motivo"`
+	Devuelto bool   `json:"epp_anterior_devuelto"`
+	Firmado  bool   `json:"formato_firmado"`
 }
 
 // EppAccion ejecuta aprobar | espera | rechazar | entregar.
