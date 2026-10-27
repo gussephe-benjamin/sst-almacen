@@ -18,7 +18,7 @@ Guía de uso por rol: [USO.md](USO.md).
    cp .env.example .env
    ```
    - `JWT_SECRET`: valor aleatorio de al menos 32 caracteres.
-   - `ACCOUNTS_ADMIN`: el DNI real, la contraseña (10 caracteres o más) y el nombre de quien administrará la plataforma.
+   - `ACCOUNTS_ADMIN`: viene con el DNI del administrador inicial (`10000001`); completa su contraseña (10 caracteres o más).
    - Deja `APP_ENV=production`. Si publicas la app por HTTPS, usa `COOKIE_SECURE=true`.
 2. **Levanta la base y prepárala:**
    ```
@@ -43,6 +43,10 @@ Guía de uso por rol: [USO.md](USO.md).
 make reset
 ```
 Borra **todos** los datos y fotos, y deja la base como recién instalada (catálogos + cuentas del `.env`). No se puede deshacer.
+
+## Administrador inicial
+
+El administrador inicial entra con el DNI **`10000001`**. Su contraseña no está en el repositorio: se define en el `.env` local (`ACCOUNTS_ADMIN`) y se puede cambiar desde la app con *Cambiar contraseña*.
 
 ## Cuentas en el `.env`
 
