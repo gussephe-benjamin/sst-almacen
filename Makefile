@@ -24,7 +24,8 @@ build:          ## Compila frontend (frontend/dist) y backend (bin/api)
 	cd frontend && npm ci && npm run build
 	cd backend && go build -o ../bin/api$(EXE) ./cmd/api
 
-start:          ## Producción: la API sirve también la app en :8081
+start: ## Producción: la API sirve también la app en :8081
+	cd backend && go build -o ../bin/api$(EXE) ./cmd/api
 	cd backend && ../bin/api$(EXE)
 
 test:
