@@ -67,7 +67,7 @@ func main() {
 	}
 	defer pool.Close()
 	files := &storage.Store{Dir: cfg.UploadDir}
-	svc := &service.Svc{DB: pool}
+	svc := &service.Svc{DB: pool, PwKey: service.ClavePasswords(cfg.JWTSecret)}
 
 	switch cmd {
 	case "reset":

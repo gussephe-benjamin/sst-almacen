@@ -48,7 +48,8 @@ type Q interface {
 }
 
 type Svc struct {
-	DB *pgxpool.Pool
+	DB    *pgxpool.Pool
+	PwKey []byte // clave AES de las contraseñas asignadas por el administrador
 }
 
 func (s *Svc) Tx(ctx context.Context, fn func(tx pgx.Tx) error) error {

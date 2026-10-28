@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"sst-almacen/internal/config"
@@ -128,7 +129,7 @@ func (s *Svc) CrearCuenta(ctx context.Context, a *Actor, in CuentaIn) (int, erro
 	var userID int
 	err := s.Tx(ctx, func(tx pgx.Tx) error {
 		var exists bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM usuarios WHERE dni=$1)`, in.DNI).Scan(&exists)
+		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM usuarios WHERE dni=$1 AND estado <> 'eliminado')`, in.DNI).Scan(&exists)
 		if exists {
 			return Conflict("dni_registrado", "Ese DNI ya tiene una cuenta. Si no tiene puesto, asígnalo desde “Personas sin puesto”.")
 		}
@@ -150,14 +151,24 @@ func (s *Svc) CrearCuenta(ctx context.Context, a *Actor, in CuentaIn) (int, erro
 		}
 		var areaID int
 		tx.QueryRow(ctx, `SELECT area_id FROM puestos WHERE id=$1`, puestoID).Scan(&areaID)
-		if err := tx.QueryRow(ctx, `INSERT INTO usuarios (dni, nombres, correo, celular, password_hash, area_id, estado)
-			VALUES ($1,$2,$3,$4,$5,$6,'activo') RETURNING id`, in.DNI, in.Nombres, in.Correo, in.Celular, hashPw(in.Password), areaID).Scan(&userID); err != nil {
+		id, ok, err := reactivar(ctx, tx, in.DNI, in.Nombres, in.Correo, in.Celular, hashPw(in.Password), areaID, "activo")
+		if err != nil {
 			return err
+		}
+		userID = id
+		if !ok {
+			if err := tx.QueryRow(ctx, `INSERT INTO usuarios (dni, nombres, correo, celular, password_hash, area_id, estado)
+				VALUES ($1,$2,$3,$4,$5,$6,'activo') RETURNING id`, in.DNI, in.Nombres, in.Correo, in.Celular, hashPw(in.Password), areaID).Scan(&userID); err != nil {
+				return err
+			}
 		}
 		if err := liberar(ctx, tx, puestoID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO asignaciones_puesto (puesto_id, usuario_id, asignado_por) VALUES ($1,$2,$3)`, puestoID, userID, a.UserID); err != nil {
+			return err
+		}
+		if err := s.guardarAsignada(ctx, tx, userID, in.Password); err != nil {
 			return err
 		}
 		return Hist(ctx, tx, a, "puesto", puestoID, fmt.Sprintf("Creó la cuenta de %s (DNI %s) en el puesto %s", in.Nombres, in.DNI, puesto))
@@ -220,6 +231,9 @@ func (s *Svc) ResetPassword(ctx context.Context, a *Actor, userID int, pw string
 		if _, err := tx.Exec(ctx, `UPDATE usuarios SET password_hash=$2 WHERE id=$1`, userID, hashPw(pw)); err != nil {
 			return err
 		}
+		if err := s.guardarAsignada(ctx, tx, userID, pw); err != nil {
+			return err
+		}
 		if puestoID == nil {
 			return nil
 		}
@@ -243,9 +257,86 @@ func (s *Svc) CambiarPassword(ctx context.Context, a *Actor, actual, nueva strin
 		if bcrypt.CompareHashAndPassword([]byte(hash), []byte(actual)) != nil {
 			return Bad("credenciales", "La contraseña actual no es correcta.")
 		}
-		if _, err := tx.Exec(ctx, `UPDATE usuarios SET password_hash=$2 WHERE id=$1`, a.UserID, hashPw(nueva)); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE usuarios SET password_hash=$2, password_asignada=NULL WHERE id=$1`, a.UserID, hashPw(nueva)); err != nil {
 			return err
 		}
 		return Hist(ctx, tx, a, "puesto", a.PuestoID, "Cambió su contraseña")
 	})
+}
+
+type PuestoIn struct {
+	Nombre    string `json:"nombre"`
+	Rol       string `json:"rol"`
+	AreaID    int    `json:"area_id"`
+	UsuarioID int    `json:"usuario_id"` // opcional: persona sin puesto que lo ocupará
+}
+
+// CrearPuesto crea un puesto vacante y, si se indica, asigna en él a una persona sin puesto.
+func (s *Svc) CrearPuesto(ctx context.Context, a *Actor, in PuestoIn) (int, error) {
+	in.Nombre = strings.TrimSpace(in.Nombre)
+	switch {
+	case !rolesGestionables[in.Rol]:
+		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento o Administración.")
+	case in.Nombre == "" || in.AreaID == 0:
+		return 0, Bad("datos_incompletos", "Indica el nombre del puesto y su área.")
+	}
+	var puestoID int
+	err := s.Tx(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `INSERT INTO puestos (nombre, rol, area_id) VALUES ($1,$2,$3) RETURNING id`, in.Nombre, in.Rol, in.AreaID).Scan(&puestoID); err != nil {
+			return err
+		}
+		if err := Hist(ctx, tx, a, "puesto", puestoID, "Creó el puesto "+in.Nombre); err != nil {
+			return err
+		}
+		if in.UsuarioID == 0 {
+			return nil
+		}
+		return asignar(ctx, tx, a, puestoID, in.UsuarioID)
+	})
+	return puestoID, err
+}
+
+// EliminarUsuario quita a una persona sin puesto. Si nunca dejó rastro se borra;
+// si ya tiene historial se marca como eliminada para conservar la trazabilidad.
+func (s *Svc) EliminarUsuario(ctx context.Context, a *Actor, id int) error {
+	return s.Tx(ctx, func(tx pgx.Tx) error {
+		var nombre, dni, estado string
+		if err := tx.QueryRow(ctx, `SELECT nombres, dni, estado FROM usuarios WHERE id=$1 FOR UPDATE`, id).Scan(&nombre, &dni, &estado); err != nil {
+			return notFound(err)
+		}
+		if estado == "activo" || estado == "eliminado" {
+			return Conflict("ocupa_puesto", "Solo se pueden eliminar personas sin puesto. Libera su puesto primero.")
+		}
+		sp, err := tx.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := sp.Exec(ctx, `DELETE FROM usuarios WHERE id=$1`, id); err != nil {
+			var pg *pgconn.PgError
+			if !errors.As(err, &pg) || pg.Code != "23503" {
+				return err
+			}
+			// Tiene historial: se conserva el registro y se oculta.
+			if err := sp.Rollback(ctx); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE usuarios SET estado='eliminado' WHERE id=$1`, id); err != nil {
+				return err
+			}
+		} else if err := sp.Commit(ctx); err != nil {
+			return err
+		}
+		return Hist(ctx, tx, a, "usuario", id, fmt.Sprintf("Eliminó a %s (DNI %s)", nombre, dni))
+	})
+}
+
+// reactivar reutiliza el registro de una persona eliminada que vuelve con el mismo DNI.
+func reactivar(ctx context.Context, tx pgx.Tx, dni, nombres, correo, celular, hash string, area any, estado string) (int, bool, error) {
+	var id int
+	err := tx.QueryRow(ctx, `UPDATE usuarios SET nombres=$2, correo=$3, celular=$4, password_hash=$5, area_id=$6, estado=$7, password_asignada=NULL
+		WHERE dni=$1 AND estado='eliminado' RETURNING id`, dni, nombres, correo, celular, hash, area, estado).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
 }

@@ -171,6 +171,18 @@ func (a *API) Router() http.Handler {
 					sp, err := a.S.Pendientes(r.Context())
 					reply(w, map[string]any{"puestos": p, "sin_puesto": sp}, err)
 				})
+				r.Post("/puestos", func(w http.ResponseWriter, r *http.Request) {
+					var in service.PuestoIn
+					if err := decode(r, &in); err != nil {
+						writeErr(w, err)
+						return
+					}
+					id, err := a.S.CrearPuesto(r.Context(), actor(r), in)
+					reply(w, map[string]int{"id": id}, err)
+				})
+				r.Delete("/usuarios/{id}", func(w http.ResponseWriter, r *http.Request) {
+					ok(w, a.S.EliminarUsuario(r.Context(), actor(r), idParam(r, "id")))
+				})
 				r.Post("/cuentas", func(w http.ResponseWriter, r *http.Request) {
 					var in service.CuentaIn
 					if err := decode(r, &in); err != nil {
@@ -196,6 +208,10 @@ func (a *API) Router() http.Handler {
 				r.Get("/puestos/{id}/historial", func(w http.ResponseWriter, r *http.Request) {
 					v, err := a.S.PuestoHistorial(r.Context(), idParam(r, "id"))
 					reply(w, v, err)
+				})
+				r.Get("/usuarios/{id}/password", func(w http.ResponseWriter, r *http.Request) {
+					pw, err := a.S.VerPassword(r.Context(), actor(r), idParam(r, "id"))
+					reply(w, map[string]string{"password": pw}, err)
 				})
 				r.Post("/usuarios/{id}/password", func(w http.ResponseWriter, r *http.Request) {
 					var in struct {

@@ -39,13 +39,19 @@ func (s *Svc) Register(ctx context.Context, in RegisterIn) error {
 	}
 	return s.Tx(ctx, func(tx pgx.Tx) error {
 		var exists bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM usuarios WHERE dni=$1)`, in.DNI).Scan(&exists)
+		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM usuarios WHERE dni=$1 AND estado <> 'eliminado')`, in.DNI).Scan(&exists)
 		if exists {
 			return Conflict("dni_registrado", "Ese DNI ya está registrado.")
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO usuarios (dni, nombres, correo, celular, password_hash, area_id) VALUES ($1,$2,$3,$4,$5,$6)`,
-			in.DNI, strings.TrimSpace(in.Nombres), in.Correo, in.Celular, string(hash), area); err != nil {
+		_, ok, err := reactivar(ctx, tx, in.DNI, strings.TrimSpace(in.Nombres), in.Correo, in.Celular, string(hash), area, "pendiente")
+		if err != nil {
 			return err
+		}
+		if !ok {
+			if _, err := tx.Exec(ctx, `INSERT INTO usuarios (dni, nombres, correo, celular, password_hash, area_id) VALUES ($1,$2,$3,$4,$5,$6)`,
+				in.DNI, strings.TrimSpace(in.Nombres), in.Correo, in.Celular, string(hash), area); err != nil {
+				return err
+			}
 		}
 		msg := in.Nombres + " se registró con DNI y espera asignación de puesto."
 		if err := Notify(ctx, tx, "sst", 0, msg, "puestos", 0); err != nil {
@@ -63,7 +69,7 @@ func (s *Svc) Login(ctx context.Context, dni, password string) (int, error) {
 	var id int
 	var hash, estado string
 	err := s.DB.QueryRow(ctx, `SELECT id, password_hash, estado FROM usuarios WHERE dni=$1`, dni).Scan(&id, &hash, &estado)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) || estado == "eliminado" {
 		return 0, Err(http.StatusUnauthorized, "dni_no_encontrado", "No encontramos ese DNI. Revisa el número o regístrate.")
 	}
 	if err != nil {

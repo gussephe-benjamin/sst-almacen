@@ -169,34 +169,36 @@ func (s *Svc) Pendientes(ctx context.Context) (json.RawMessage, error) {
 }
 
 func (s *Svc) Asignar(ctx context.Context, a *Actor, puestoID, usuarioID int) error {
-	return s.Tx(ctx, func(tx pgx.Tx) error {
-		var puesto, rol string
-		if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
-			return notFound(err)
-		}
-		if !rolesGestionables[rol] {
-			return Err(403, "sin_permiso", "Las cuentas de administrador se gestionan desde el archivo .env.")
-		}
-		var nombre, estado string
-		if err := tx.QueryRow(ctx, `SELECT nombres, estado FROM usuarios WHERE id=$1 FOR UPDATE`, usuarioID).Scan(&nombre, &estado); err != nil {
-			return notFound(err)
-		}
-		var ocupa bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM asignaciones_puesto WHERE usuario_id=$1 AND hasta IS NULL)`, usuarioID).Scan(&ocupa)
-		if ocupa {
-			return Conflict("ya_asignado", "Esa persona ya ocupa otro puesto.")
-		}
-		if err := liberar(ctx, tx, puestoID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO asignaciones_puesto (puesto_id, usuario_id, asignado_por) VALUES ($1,$2,$3)`, puestoID, usuarioID, a.UserID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE usuarios SET estado='activo' WHERE id=$1`, usuarioID); err != nil {
-			return err
-		}
-		return Hist(ctx, tx, a, "puesto", puestoID, fmt.Sprintf("Asignó a %s al puesto %s", nombre, puesto))
-	})
+	return s.Tx(ctx, func(tx pgx.Tx) error { return asignar(ctx, tx, a, puestoID, usuarioID) })
+}
+
+func asignar(ctx context.Context, tx pgx.Tx, a *Actor, puestoID, usuarioID int) error {
+	var puesto, rol string
+	if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
+		return notFound(err)
+	}
+	if !rolesGestionables[rol] {
+		return Err(403, "sin_permiso", "Las cuentas de administrador se gestionan desde el archivo .env.")
+	}
+	var nombre, estado string
+	if err := tx.QueryRow(ctx, `SELECT nombres, estado FROM usuarios WHERE id=$1 FOR UPDATE`, usuarioID).Scan(&nombre, &estado); err != nil {
+		return notFound(err)
+	}
+	var ocupa bool
+	tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM asignaciones_puesto WHERE usuario_id=$1 AND hasta IS NULL)`, usuarioID).Scan(&ocupa)
+	if ocupa {
+		return Conflict("ya_asignado", "Esa persona ya ocupa otro puesto.")
+	}
+	if err := liberar(ctx, tx, puestoID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO asignaciones_puesto (puesto_id, usuario_id, asignado_por) VALUES ($1,$2,$3)`, puestoID, usuarioID, a.UserID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE usuarios SET estado='activo' WHERE id=$1`, usuarioID); err != nil {
+		return err
+	}
+	return Hist(ctx, tx, a, "puesto", puestoID, fmt.Sprintf("Asignó a %s al puesto %s", nombre, puesto))
 }
 
 func (s *Svc) PuestoHistorial(ctx context.Context, id int) (map[string]json.RawMessage, error) {

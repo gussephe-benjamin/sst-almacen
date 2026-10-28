@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Copy, KeyRound, Plus, RefreshCw, Search } from 'lucide-react'
-import type { Me, Row } from '../api/client'
+import { useQuery } from '@tanstack/react-query'
+import { Copy, KeyRound, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { api, type Me, type Row } from '../api/client'
 import { Banner, Btn, Chip, Field, Loading, Modal, Page, Tabs, confirmar, fmtD, fmtDT, toast, useAction, useApi } from '../components/ui'
 
 const ROLES: [string, string][] = [['trabajador', 'Trabajador'], ['sst', 'SST'], ['mantenimiento', 'Mantenimiento'], ['administracion', 'Administración']]
@@ -44,6 +45,7 @@ export function Cuentas({ me }: { me: Me }) {
   const [soloVacantes, setSoloVacantes] = useState(false)
   const [crear, setCrear] = useState<{ puesto_id: number; rol: string } | null>(null)
   const [asignar, setAsignar] = useState<Row | null>(null)
+  const [nuevoPuesto, setNuevoPuesto] = useState(false)
   const [reset, setReset] = useState<Row | null>(null)
   const [hist, setHist] = useState<Row | null>(null)
   const [cred, setCred] = useState<{ nombre: string; dni: string; password: string } | null>(null)
@@ -61,7 +63,10 @@ export function Cuentas({ me }: { me: Me }) {
   return (
     <Page title="Cuentas y puestos"
       sub="Las cuentas pertenecen al puesto. Al cambiar al personal, la persona nueva hereda las solicitudes, tareas y avisos del puesto. Las cuentas de administrador se definen en el archivo .env."
-      actions={<button className="btn btn-primary" onClick={() => setCrear({ puesto_id: 0, rol: rol && rol !== 'admin' ? rol : 'trabajador' })}><Plus size={14} /> Crear cuenta</button>}>
+      actions={<>
+        <button className="btn" onClick={() => setNuevoPuesto(true)}><Plus size={14} /> Nuevo puesto</button>
+        <button className="btn btn-primary" onClick={() => setCrear({ puesto_id: 0, rol: rol && rol !== 'admin' ? rol : 'trabajador' })}><Plus size={14} /> Crear cuenta</button>
+      </>}>
       <Loading q={q} />
 
       {sinPuesto.length > 0 && (
@@ -75,7 +80,11 @@ export function Cuentas({ me }: { me: Me }) {
                   <td>{u.estado === 'pendiente' ? <Chip s="en_espera">Registro nuevo</Chip> : <Chip s="pendiente">Sin puesto actual</Chip>}</td>
                   <td className="text-xs">{u.correo || '—'}<div className="text-slate-500">{u.celular}</div></td>
                   <td className="text-xs">{u.area ?? '—'}<div className="text-slate-500">{fmtDT(u.created_at)}</div></td>
-                  <td className="text-right"><button className="btn btn-sm btn-primary" onClick={() => setAsignar(u)}>Asignar a un puesto</button></td>
+                  <td className="whitespace-nowrap text-right"><div className="inline-flex gap-1">
+                    <button className="btn btn-sm btn-primary" onClick={() => setAsignar(u)}>Asignar a un puesto</button>
+                    <Btn className="btn btn-sm btn-danger" title="Eliminar persona" onClick={() => confirmar(`¿Eliminar a ${u.nombres} (DNI ${u.dni})? Ya no aparecerá aquí ni podrá ingresar. Si vuelve a registrarse con su DNI, llegará como registro nuevo. Lo que hizo antes queda en el historial.`)
+                      ? act(`/admin/usuarios/${u.id}`, undefined, `${u.nombres} fue eliminado.`, 'DELETE') : undefined}><Trash2 size={12} /> Eliminar</Btn>
+                  </div></td>
                 </tr>
               ))}
             </tbody></table>
@@ -109,7 +118,7 @@ export function Cuentas({ me }: { me: Me }) {
                   <td className="whitespace-nowrap text-right">
                     {esAdmin && !propio ? <span className="text-xs text-slate-400">Se gestiona en .env</span> : <div className="inline-flex flex-wrap justify-end gap-1">
                       {!esAdmin && <button className="btn btn-sm" onClick={() => setCrear({ puesto_id: p.id, rol: p.rol })}>{p.persona ? 'Cambiar personal' : 'Asignar persona'}</button>}
-                      {p.persona && <button className="btn btn-sm" title="Restablecer contraseña" onClick={() => setReset(p)}><KeyRound size={12} /> Contraseña</button>}
+                      {p.persona && <button className="btn btn-sm" title="Ver o restablecer contraseña" onClick={() => setReset(p)}><KeyRound size={12} /> Contraseña</button>}
                       {p.persona && !esAdmin && (
                         <Btn className="btn btn-sm btn-danger" onClick={() => confirmar(`¿Retirar a ${p.persona} del puesto "${p.nombre}"? Ya no podrá ingresar y el puesto quedará vacante.`)
                           ? act(`/admin/puestos/${p.id}/liberar`, {}, 'Puesto liberado.') : undefined}>Liberar</Btn>
@@ -126,7 +135,8 @@ export function Cuentas({ me }: { me: Me }) {
       </div>
 
       {crear && <CrearCuenta init={crear} puestos={puestos} areas={areas.data ?? []} onClose={() => setCrear(null)} onDone={(c) => { setCrear(null); setCred(c) }} />}
-      {asignar && <AsignarPuesto u={asignar} puestos={puestos} onClose={() => setAsignar(null)} />}
+      {nuevoPuesto && <NuevoPuesto sinPuesto={sinPuesto} areas={areas.data ?? []} onClose={() => setNuevoPuesto(false)} />}
+      {asignar && <AsignarPuesto u={asignar} puestos={puestos} areas={areas.data ?? []} onClose={() => setAsignar(null)} />}
       {reset && (
         <ResetPassword p={reset} onClose={() => setReset(null)} onDone={(pw) => { setCred({ nombre: reset.persona, dni: reset.dni, password: pw }); setReset(null) }} />
       )}
@@ -196,12 +206,58 @@ function CrearCuenta({ init, puestos, areas, onClose, onDone }: {
   )
 }
 
-function AsignarPuesto({ u, puestos, onClose }: { u: Row; puestos: Row[]; onClose: () => void }) {
+function NuevoPuesto({ sinPuesto, areas, onClose }: { sinPuesto: Row[]; areas: Row[]; onClose: () => void }) {
+  const act = useAction()
+  const [f, setF] = useState({ nombre: '', rol: 'trabajador', area_id: 0, usuario_id: 0 })
+  const persona = sinPuesto.find((u) => u.id === f.usuario_id)
+  const save = async () => {
+    if (!f.nombre.trim() || !f.area_id) return toast('Indica el nombre del puesto y su área.', true)
+    const ok = persona ? `Se creó el puesto y se asignó a ${persona.nombres}.` : 'Puesto creado. Queda vacante.'
+    if (await act('/admin/puestos', f, ok)) onClose()
+  }
+  return (
+    <Modal title="Nuevo puesto" onClose={onClose}
+      footer={<><button className="btn" onClick={onClose}>Cancelar</button><Btn className="btn btn-primary" onClick={save}>Crear puesto</Btn></>}>
+      <Field label="Rol">
+        <select className="inp" value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value })}>
+          {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Nombre del puesto"><input className="inp" placeholder="Ej. Operario de almacén 3" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
+        <Field label="Área">
+          <select className="inp" value={f.area_id} onChange={(e) => setF({ ...f, area_id: +e.target.value })}>
+            <option value={0}>Selecciona…</option>
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="Persona (opcional)">
+        <select className="inp" value={f.usuario_id} onChange={(e) => setF({ ...f, usuario_id: +e.target.value })}>
+          <option value={0}>Dejar vacante</option>
+          {sinPuesto.map((u) => <option key={u.id} value={u.id}>{u.nombres} · DNI {u.dni}</option>)}
+        </select>
+      </Field>
+      <p className="muted">{persona
+        ? `${persona.nombres} ingresará con su DNI y la contraseña que eligió al registrarse.`
+        : sinPuesto.length ? 'Puedes elegir a una persona sin puesto o dejarlo vacante y asignarlo después.' : 'Quedará vacante. Luego podrás asignarle una persona.'}</p>
+    </Modal>
+  )
+}
+
+function AsignarPuesto({ u, puestos, areas, onClose }: { u: Row; puestos: Row[]; areas: Row[]; onClose: () => void }) {
   const act = useAction()
   const opciones = puestos.filter((p) => p.rol !== 'admin').sort((a, b) => Number(!!a.persona) - Number(!!b.persona))
-  const [pid, setPid] = useState(0)
+  // Sin puestos disponibles, empieza directo en "Crear un puesto nuevo".
+  const [pid, setPid] = useState(opciones.length ? 0 : -1)
+  const [nuevo, setNuevo] = useState({ nombre: '', rol: 'trabajador', area_id: areas.find((a) => a.nombre === u.area)?.id ?? 0 })
   const elegido = puestos.find((p) => p.id === pid)
   const save = async () => {
+    if (pid === -1) {
+      if (!nuevo.nombre.trim() || !nuevo.area_id) return toast('Indica el nombre del puesto nuevo y su área.', true)
+      if (await act('/admin/puestos', { usuario_id: u.id, ...nuevo }, `Se creó el puesto y se asignó a ${u.nombres}.`)) onClose()
+      return
+    }
     if (!pid) return toast('Elige un puesto.', true)
     if (await act(`/admin/puestos/${pid}/asignar`, { usuario_id: u.id }, `${u.nombres} fue asignado al puesto.`)) onClose()
   }
@@ -211,7 +267,8 @@ function AsignarPuesto({ u, puestos, onClose }: { u: Row; puestos: Row[]; onClos
       <p className="muted">DNI {u.dni}{u.area && ` · se registró en ${u.area}`}</p>
       <Field label="Puesto">
         <select className="inp" value={pid} onChange={(e) => setPid(+e.target.value)}>
-          <option value={0}>Selecciona…</option>
+          <option value={0} disabled>Selecciona…</option>
+          <option value={-1}>+ Crear un puesto nuevo</option>
           {ROLES.map(([r, l]) => (
             <optgroup key={r} label={l}>
               {opciones.filter((p) => p.rol === r).map((p) => <option key={p.id} value={p.id}>{p.nombre} {p.persona ? `(hoy: ${p.persona})` : '(vacante)'}</option>)}
@@ -219,19 +276,50 @@ function AsignarPuesto({ u, puestos, onClose }: { u: Row; puestos: Row[]; onClos
           ))}
         </select>
       </Field>
+      {pid === -1 && <>
+        <Field label="Rol">
+          <select className="inp" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })}>
+            {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Nombre del puesto"><input className="inp" placeholder="Ej. Operario de almacén 3" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} /></Field>
+          <Field label="Área">
+            <select className="inp" value={nuevo.area_id} onChange={(e) => setNuevo({ ...nuevo, area_id: +e.target.value })}>
+              <option value={0}>Selecciona…</option>
+              {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+          </Field>
+        </div>
+      </>}
       {elegido?.persona && <Banner kind="warn"><b>{elegido.persona}</b> saldrá del puesto y ya no podrá ingresar.</Banner>}
       <p className="muted">La persona ingresará con su DNI y la contraseña que eligió al registrarse.</p>
     </Modal>
   )
 }
 
+/** Muestra la contraseña que entregó el administrador (si la persona no la cambió) y permite restablecerla. */
 function ResetPassword({ p, onClose, onDone }: { p: Row; onClose: () => void; onDone: (pw: string) => void }) {
   const act = useAction()
+  const actual = useQuery({
+    queryKey: ['password', p.usuario_id],
+    queryFn: () => api<{ password: string }>(`/admin/usuarios/${p.usuario_id}/password`),
+    retry: false, gcTime: 0,
+  })
   const [pw, setPw] = useState(genPassword())
   return (
     <Modal title={`Contraseña de ${p.persona}`} onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>Cancelar</button>
+      footer={<><button className="btn" onClick={onClose}>Cerrar</button>
         <Btn className="btn btn-primary" onClick={async () => { if (await act(`/admin/usuarios/${p.usuario_id}/password`, { password: pw }, 'Contraseña restablecida.')) onDone(pw) }}>Restablecer</Btn></>}>
+      <h3 className="font-semibold">Contraseña asignada</h3>
+      {actual.isLoading ? <p className="muted">Cargando…</p> : actual.data ? <>
+        <div className="flex gap-2">
+          <pre className="flex-1 rounded-md bg-slate-100 p-3 text-sm">{actual.data.password}</pre>
+          <button className="btn" onClick={() => navigator.clipboard.writeText(actual.data.password).then(() => toast('Copiado.'))}><Copy size={14} /> Copiar</button>
+        </div>
+        <p className="muted">Es la que entregó el administrador. Deja de verse cuando la persona la cambia.</p>
+      </> : <Banner kind="warn">{(actual.error as Error)?.message}</Banner>}
+      <h3 className="mt-2 font-semibold">Restablecer</h3>
       <PasswordField value={pw} onChange={setPw} />
     </Modal>
   )

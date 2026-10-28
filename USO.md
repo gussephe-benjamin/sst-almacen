@@ -29,11 +29,14 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
 ## Administrador: Cuentas y puestos
 
 1. **Crear cuenta:** elige el rol y luego un puesto existente o *Crear un puesto nuevo* (nombre y área). Completa el DNI, los nombres, el correo y el celular. La contraseña inicial se genera sola (puedes cambiarla). Al terminar, la app muestra las **credenciales para entregar**, con un botón para copiarlas; no se vuelven a mostrar.
-2. **Personas sin puesto:** aparecen los registros nuevos y las personas que salieron de un puesto. Con *Asignar a un puesto* las activas.
-3. **Cambiar personal:** crea la cuenta de la persona nueva en ese puesto. La anterior sale del puesto y queda sin acceso; el historial se conserva.
-4. **Liberar:** retira a la persona y deja el puesto vacante (pide confirmación).
-5. **Contraseña:** genera una contraseña nueva para entregarla.
-6. **Historial:** muestra quiénes ocuparon el puesto y qué acciones se hicieron desde él.
+2. **Nuevo puesto:** crea un puesto con su nombre, rol y área. Puede quedar **vacante** o asignarse en el mismo paso a una persona sin puesto.
+3. **Personas sin puesto:** aparecen los registros nuevos y las personas que salieron de un puesto.
+   - *Asignar a un puesto* las activa en un puesto existente o en uno nuevo (*+ Crear un puesto nuevo*). Entran con la contraseña que eligieron al registrarse.
+   - *Eliminar* las quita de la lista y les quita el acceso (pide confirmación). Lo que hicieron antes queda en el historial. Si vuelven a registrarse con su DNI, llegan como registro nuevo.
+4. **Cambiar personal:** crea la cuenta de la persona nueva en ese puesto. La anterior sale del puesto y queda sin acceso; el historial se conserva.
+5. **Liberar:** retira a la persona y deja el puesto vacante (pide confirmación).
+6. **Contraseña:** muestra la **contraseña asignada**, es decir, la que entregó el administrador al crear la cuenta o al restablecerla, mientras la persona no la cambie. También permite restablecerla. Las contraseñas que eligen las personas no se pueden ver. Cada vez que el administrador ve una contraseña, queda en el historial del puesto.
+7. **Historial:** muestra quiénes ocuparon el puesto y qué acciones se hicieron desde él.
 
 Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo vacantes* para ubicarte rápido. Las cuentas de administrador se definen únicamente en el archivo `.env` del servidor.
 
