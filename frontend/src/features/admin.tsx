@@ -46,6 +46,7 @@ export function Cuentas({ me }: { me: Me }) {
   const [crear, setCrear] = useState<{ puesto_id: number; rol: string } | null>(null)
   const [asignar, setAsignar] = useState<Row | null>(null)
   const [nuevoPuesto, setNuevoPuesto] = useState(false)
+  const [vacante, setVacante] = useState<Row | null>(null)
   const [reset, setReset] = useState<Row | null>(null)
   const [hist, setHist] = useState<Row | null>(null)
   const [cred, setCred] = useState<{ nombre: string; dni: string; password: string } | null>(null)
@@ -117,7 +118,7 @@ export function Cuentas({ me }: { me: Me }) {
                   <td className="text-xs">{fmtD(p.desde)}</td>
                   <td className="whitespace-nowrap text-right">
                     {esAdmin && !propio ? <span className="text-xs text-slate-400">Se gestiona en .env</span> : <div className="inline-flex flex-wrap justify-end gap-1">
-                      {!esAdmin && <button className="btn btn-sm" onClick={() => setCrear({ puesto_id: p.id, rol: p.rol })}>{p.persona ? 'Cambiar personal' : 'Asignar persona'}</button>}
+                      {!esAdmin && <button className="btn btn-sm" onClick={() => p.persona ? setCrear({ puesto_id: p.id, rol: p.rol }) : setVacante(p)}>{p.persona ? 'Cambiar personal' : 'Asignar persona'}</button>}
                       {p.persona && <button className="btn btn-sm" title="Ver o restablecer contraseña" onClick={() => setReset(p)}><KeyRound size={12} /> Contraseña</button>}
                       {p.persona && !esAdmin && (
                         <Btn className="btn btn-sm btn-danger" onClick={() => confirmar(`¿Retirar a ${p.persona} del puesto "${p.nombre}"? Ya no podrá ingresar y el puesto quedará vacante.`)
@@ -135,6 +136,8 @@ export function Cuentas({ me }: { me: Me }) {
       </div>
 
       {crear && <CrearCuenta init={crear} puestos={puestos} areas={areas.data ?? []} onClose={() => setCrear(null)} onDone={(c) => { setCrear(null); setCred(c) }} />}
+      {vacante && <ElegirPersona p={vacante} sinPuesto={sinPuesto} onClose={() => setVacante(null)}
+        onCrearCuenta={() => { setCrear({ puesto_id: vacante.id, rol: vacante.rol }); setVacante(null) }} />}
       {nuevoPuesto && <NuevoPuesto sinPuesto={sinPuesto} areas={areas.data ?? []} onClose={() => setNuevoPuesto(false)} />}
       {asignar && <AsignarPuesto u={asignar} puestos={puestos} areas={areas.data ?? []} onClose={() => setAsignar(null)} />}
       {reset && (
@@ -202,6 +205,37 @@ function CrearCuenta({ init, puestos, areas, onClose, onDone }: {
       <Field label="Correo"><input className="inp" type="email" value={f.correo} onChange={(e) => set('correo', e.target.value)} /></Field>
       <PasswordField value={f.password} onChange={(v) => set('password', v)} />
       {err && <Banner kind="err">{err}</Banner>}
+    </Modal>
+  )
+}
+
+/** Ocupa un puesto vacante con una persona sin puesto; crear una cuenta nueva queda como alternativa. */
+function ElegirPersona({ p, sinPuesto, onClose, onCrearCuenta }: { p: Row; sinPuesto: Row[]; onClose: () => void; onCrearCuenta: () => void }) {
+  const act = useAction()
+  const [uid, setUid] = useState(sinPuesto.length === 1 ? sinPuesto[0].id : 0)
+  const persona = sinPuesto.find((u) => u.id === uid)
+  const save = async () => {
+    if (!persona) return toast('Elige a una persona.', true)
+    if (await act(`/admin/puestos/${p.id}/asignar`, { usuario_id: uid }, `${persona.nombres} fue asignado a ${p.nombre}.`)) onClose()
+  }
+  return (
+    <Modal title={`Asignar persona a ${p.nombre}`} onClose={onClose}
+      footer={<><button className="btn" onClick={onClose}>Cancelar</button>{sinPuesto.length > 0 && <Btn className="btn btn-primary" onClick={save}>Asignar</Btn>}</>}>
+      <p className="muted">{ROL_LABEL[p.rol]} · {p.area}</p>
+      {sinPuesto.length ? <>
+        <p className="text-sm font-medium">Elige a una persona sin puesto</p>
+        <div className="max-h-72 space-y-1 overflow-y-auto">
+          {sinPuesto.map((u) => (
+            <label key={u.id} className={`flex cursor-pointer items-center gap-3 rounded-md border p-2 ${uid === u.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200'}`}>
+              <input type="radio" name="persona" checked={uid === u.id} onChange={() => setUid(u.id)} />
+              <span className="flex-1"><b>{u.nombres}</b><span className="block text-xs text-slate-500">DNI {u.dni}{u.area && ` · ${u.area}`}</span></span>
+              {u.estado === 'pendiente' ? <Chip s="en_espera">Registro nuevo</Chip> : <Chip s="pendiente">Sin puesto actual</Chip>}
+            </label>
+          ))}
+        </div>
+        <p className="muted">Ingresará con su DNI y la contraseña que eligió al registrarse.</p>
+      </> : <Banner kind="warn">No hay personas sin puesto. Cuando alguien se registre con su DNI aparecerá aquí.</Banner>}
+      <button className="btn btn-sm self-start" onClick={onCrearCuenta}><Plus size={12} /> O crear una cuenta nueva para este puesto</button>
     </Modal>
   )
 }
