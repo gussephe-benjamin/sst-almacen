@@ -35,7 +35,12 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
    - *Eliminar* las quita de la lista y les quita el acceso (pide confirmación). Lo que hicieron antes queda en el historial. Si vuelven a registrarse con su DNI, llegan como registro nuevo.
 4. **Cambiar personal:** crea la cuenta de la persona nueva en ese puesto. La anterior sale del puesto y queda sin acceso; el historial se conserva.
 5. **Liberar:** retira a la persona y deja el puesto vacante (pide confirmación).
-6. **Contraseña:** muestra la **contraseña asignada**, es decir, la que entregó el administrador al crear la cuenta o al restablecerla, mientras la persona no la cambie. También permite restablecerla. Las contraseñas que eligen las personas no se pueden ver. Cada vez que el administrador ve una contraseña, queda en el historial del puesto.
+6. **Perfil:** se abre tocando el nombre de la persona o el botón *Perfil*, tanto en los puestos como en *Personas sin puesto*. Muestra:
+   - Sus datos: DNI, puesto, correo, celular y área.
+   - La **contraseña asignada**, es decir, la que entregó el administrador al crear la cuenta o al cambiarla, mientras la persona no la cambie. Las contraseñas que eligen las personas no se pueden ver.
+   - **Cambiar contraseña**, para entregarle una nueva; desde ese momento se ve en el perfil.
+
+   Ver o cambiar una contraseña queda registrado en el historial del puesto.
 7. **Historial:** muestra quiénes ocuparon el puesto y qué acciones se hicieron desde él.
 
 Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo vacantes* para ubicarte rápido. Las cuentas de administrador se definen únicamente en el archivo `.env` del servidor.

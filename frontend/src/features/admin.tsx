@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Copy, KeyRound, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { Copy, KeyRound, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { api, type Me, type Row } from '../api/client'
 import { Banner, Btn, Chip, Field, Loading, Modal, Page, Tabs, confirmar, fmtD, fmtDT, toast, useAction, useApi } from '../components/ui'
 
@@ -13,9 +13,9 @@ const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(10)), (n) => c[n % c.length]).join('')
 }
 
-function PasswordField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function PasswordField({ value, onChange, label = 'Contraseña inicial (mínimo 8 caracteres)' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <Field label="Contraseña inicial (mínimo 8 caracteres)">
+    <Field label={label}>
       <div className="flex gap-2">
         <input className="inp font-mono" value={value} onChange={(e) => onChange(e.target.value)} />
         <button type="button" className="btn" title="Generar contraseña" onClick={() => onChange(genPassword())}><RefreshCw size={14} /> Generar</button>
@@ -47,7 +47,14 @@ export function Cuentas({ me }: { me: Me }) {
   const [asignar, setAsignar] = useState<Row | null>(null)
   const [nuevoPuesto, setNuevoPuesto] = useState(false)
   const [vacante, setVacante] = useState<Row | null>(null)
-  const [reset, setReset] = useState<Row | null>(null)
+  const [perfil, setPerfil] = useState<PerfilData | null>(null)
+  const perfilDe = (p: Row): PerfilData => ({
+    id: p.usuario_id, nombres: p.persona, dni: p.dni, correo: p.correo, celular: p.celular, area: p.area,
+    estado: 'activo', puesto: p.nombre, rol: p.rol, desde: p.desde,
+  })
+  const perfilSin = (u: Row): PerfilData => ({
+    id: u.id, nombres: u.nombres, dni: u.dni, correo: u.correo, celular: u.celular, area: u.area, estado: u.estado, registro: u.created_at,
+  })
   const [hist, setHist] = useState<Row | null>(null)
   const [cred, setCred] = useState<{ nombre: string; dni: string; password: string } | null>(null)
 
@@ -77,12 +84,13 @@ export function Cuentas({ me }: { me: Me }) {
             <table className="tbl"><tbody>
               {sinPuesto.map((u) => (
                 <tr key={u.id}>
-                  <td><b>{u.nombres}</b><div className="text-xs text-slate-500">DNI {u.dni}</div></td>
+                  <td><button className="text-left font-semibold text-blue-700 hover:underline" onClick={() => setPerfil(perfilSin(u))}>{u.nombres}</button><div className="text-xs text-slate-500">DNI {u.dni}</div></td>
                   <td>{u.estado === 'pendiente' ? <Chip s="en_espera">Registro nuevo</Chip> : <Chip s="pendiente">Sin puesto actual</Chip>}</td>
                   <td className="text-xs">{u.correo || '—'}<div className="text-slate-500">{u.celular}</div></td>
                   <td className="text-xs">{u.area ?? '—'}<div className="text-slate-500">{fmtDT(u.created_at)}</div></td>
                   <td className="whitespace-nowrap text-right"><div className="inline-flex gap-1">
                     <button className="btn btn-sm btn-primary" onClick={() => setAsignar(u)}>Asignar a un puesto</button>
+                    <button className="btn btn-sm" title="Ver datos y contraseña" onClick={() => setPerfil(perfilSin(u))}><UserRound size={12} /> Perfil</button>
                     <Btn className="btn btn-sm btn-danger" title="Eliminar persona" onClick={() => confirmar(`¿Eliminar a ${u.nombres} (DNI ${u.dni})? Ya no aparecerá aquí ni podrá ingresar. Si vuelve a registrarse con su DNI, llegará como registro nuevo. Lo que hizo antes queda en el historial.`)
                       ? act(`/admin/usuarios/${u.id}`, undefined, `${u.nombres} fue eliminado.`, 'DELETE') : undefined}><Trash2 size={12} /> Eliminar</Btn>
                   </div></td>
@@ -113,13 +121,14 @@ export function Cuentas({ me }: { me: Me }) {
                 <tr key={p.id}>
                   <td><b>{p.nombre}</b><div className="text-xs text-slate-500">{p.area}</div></td>
                   <td><Chip s={ROL_CHIP[p.rol]}>{ROL_LABEL[p.rol]}</Chip></td>
-                  <td>{p.persona ?? <span className="text-amber-700">Vacante</span>}{p.dni && <div className="text-xs text-slate-500">DNI {p.dni}</div>}</td>
+                  <td>{p.persona ? <button className="text-left font-medium text-blue-700 hover:underline" onClick={() => setPerfil(perfilDe(p))}>{p.persona}</button>
+                    : <span className="text-amber-700">Vacante</span>}{p.dni && <div className="text-xs text-slate-500">DNI {p.dni}</div>}</td>
                   <td className="text-xs">{p.celular || '—'}<div className="text-slate-500">{p.correo}</div></td>
                   <td className="text-xs">{fmtD(p.desde)}</td>
                   <td className="whitespace-nowrap text-right">
                     {esAdmin && !propio ? <span className="text-xs text-slate-400">Se gestiona en .env</span> : <div className="inline-flex flex-wrap justify-end gap-1">
                       {!esAdmin && <button className="btn btn-sm" onClick={() => p.persona ? setCrear({ puesto_id: p.id, rol: p.rol }) : setVacante(p)}>{p.persona ? 'Cambiar personal' : 'Asignar persona'}</button>}
-                      {p.persona && <button className="btn btn-sm" title="Ver o restablecer contraseña" onClick={() => setReset(p)}><KeyRound size={12} /> Contraseña</button>}
+                      {p.persona && <button className="btn btn-sm" title="Ver datos y contraseña" onClick={() => setPerfil(perfilDe(p))}><UserRound size={12} /> Perfil</button>}
                       {p.persona && !esAdmin && (
                         <Btn className="btn btn-sm btn-danger" onClick={() => confirmar(`¿Retirar a ${p.persona} del puesto "${p.nombre}"? Ya no podrá ingresar y el puesto quedará vacante.`)
                           ? act(`/admin/puestos/${p.id}/liberar`, {}, 'Puesto liberado.') : undefined}>Liberar</Btn>
@@ -140,9 +149,7 @@ export function Cuentas({ me }: { me: Me }) {
         onCrearCuenta={() => { setCrear({ puesto_id: vacante.id, rol: vacante.rol }); setVacante(null) }} />}
       {nuevoPuesto && <NuevoPuesto sinPuesto={sinPuesto} areas={areas.data ?? []} onClose={() => setNuevoPuesto(false)} />}
       {asignar && <AsignarPuesto u={asignar} puestos={puestos} areas={areas.data ?? []} onClose={() => setAsignar(null)} />}
-      {reset && (
-        <ResetPassword p={reset} onClose={() => setReset(null)} onDone={(pw) => { setCred({ nombre: reset.persona, dni: reset.dni, password: pw }); setReset(null) }} />
-      )}
+      {perfil && <Perfil u={perfil} onClose={() => setPerfil(null)} />}
       {hist && <Historial p={hist} onClose={() => setHist(null)} />}
       {cred && <Credenciales c={cred} onClose={() => setCred(null)} />}
     </Page>
@@ -332,29 +339,51 @@ function AsignarPuesto({ u, puestos, areas, onClose }: { u: Row; puestos: Row[];
   )
 }
 
-/** Muestra la contraseña que entregó el administrador (si la persona no la cambió) y permite restablecerla. */
-function ResetPassword({ p, onClose, onDone }: { p: Row; onClose: () => void; onDone: (pw: string) => void }) {
+type PerfilData = {
+  id: number; nombres: string; dni: string; correo?: string; celular?: string; area?: string
+  estado: string; puesto?: string; rol?: string; desde?: string; registro?: string
+}
+
+/** Perfil de una persona: sus datos, la contraseña que le entregó el administrador y el cambio de contraseña. */
+function Perfil({ u, onClose }: { u: PerfilData; onClose: () => void }) {
   const act = useAction()
   const actual = useQuery({
-    queryKey: ['password', p.usuario_id],
-    queryFn: () => api<{ password: string }>(`/admin/usuarios/${p.usuario_id}/password`),
+    queryKey: ['password', u.id],
+    queryFn: () => api<{ password: string }>(`/admin/usuarios/${u.id}/password`),
     retry: false, gcTime: 0,
   })
   const [pw, setPw] = useState(genPassword())
+  const cambiar = async () => {
+    if (pw.length < 8) return toast('La contraseña debe tener al menos 8 caracteres.', true)
+    if (await act(`/admin/usuarios/${u.id}/password`, { password: pw }, 'Contraseña cambiada. Entrégasela a la persona.')) setPw(genPassword())
+  }
+  const estado = u.estado === 'activo' ? <Chip s="aprobada">Activo</Chip>
+    : u.estado === 'pendiente' ? <Chip s="en_espera">Registro nuevo</Chip> : <Chip s="pendiente">Sin puesto actual</Chip>
+  const dato = (label: string, v: ReactNode) => <div><div className="text-xs text-slate-500">{label}</div><div className="text-sm">{v || '—'}</div></div>
   return (
-    <Modal title={`Contraseña de ${p.persona}`} onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>Cerrar</button>
-        <Btn className="btn btn-primary" onClick={async () => { if (await act(`/admin/usuarios/${p.usuario_id}/password`, { password: pw }, 'Contraseña restablecida.')) onDone(pw) }}>Restablecer</Btn></>}>
-      <h3 className="font-semibold">Contraseña asignada</h3>
+    <Modal title={u.nombres} onClose={onClose} footer={<button className="btn" onClick={onClose}>Cerrar</button>}>
+      <div className="flex flex-wrap items-center gap-2">{estado}{u.rol && <Chip s={ROL_CHIP[u.rol]}>{ROL_LABEL[u.rol]}</Chip>}</div>
+      <div className="grid grid-cols-2 gap-3">
+        {dato('DNI (usuario)', u.dni)}
+        {dato('Puesto', u.puesto ? <>{u.puesto}{u.desde && <span className="text-slate-500"> · desde {fmtD(u.desde)}</span>}</> : 'Sin puesto')}
+        {dato('Correo', u.correo)}
+        {dato('Celular', u.celular)}
+        {dato('Área', u.area)}
+        {u.registro && dato('Se registró', fmtDT(u.registro))}
+      </div>
+
+      <h3 className="mt-2 border-t border-slate-200 pt-3 font-semibold">Contraseña</h3>
       {actual.isLoading ? <p className="muted">Cargando…</p> : actual.data ? <>
         <div className="flex gap-2">
           <pre className="flex-1 rounded-md bg-slate-100 p-3 text-sm">{actual.data.password}</pre>
           <button className="btn" onClick={() => navigator.clipboard.writeText(actual.data.password).then(() => toast('Copiado.'))}><Copy size={14} /> Copiar</button>
         </div>
-        <p className="muted">Es la que entregó el administrador. Deja de verse cuando la persona la cambia.</p>
-      </> : <Banner kind="warn">{(actual.error as Error)?.message}</Banner>}
-      <h3 className="mt-2 font-semibold">Restablecer</h3>
-      <PasswordField value={pw} onChange={setPw} />
+        <p className="muted">Es la que entregó el administrador. Deja de verse si la persona la cambia.</p>
+      </> : <p className="muted">{(actual.error as Error)?.message}</p>}
+
+      <h3 className="mt-2 font-semibold">Cambiar contraseña</h3>
+      <PasswordField label="Nueva contraseña (mínimo 8 caracteres)" value={pw} onChange={setPw} />
+      <Btn className="btn btn-primary self-start" onClick={cambiar}><KeyRound size={14} /> Guardar contraseña</Btn>
     </Modal>
   )
 }

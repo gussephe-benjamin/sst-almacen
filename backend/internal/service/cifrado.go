@@ -56,7 +56,7 @@ func (s *Svc) gcm() (cipher.AEAD, error) {
 }
 
 var errSinPassword = Err(http.StatusNotFound, "sin_password_asignada",
-	"No hay una contraseña asignada para ver: la persona la eligió al registrarse o ya la cambió. Puedes restablecerla para entregarle una nueva.")
+	"No hay una contraseña asignada para ver: la persona la eligió al registrarse o ya la cambió. Puedes cambiarla para entregarle una nueva.")
 
 // guardarAsignada guarda cifrada la contraseña que el administrador entrega a la persona.
 func (s *Svc) guardarAsignada(ctx context.Context, tx pgx.Tx, userID int, pw string) error {
