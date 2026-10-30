@@ -37,12 +37,14 @@ func resetDB(ctx context.Context, tx pgx.Tx, files *storage.Store) error {
 	if _, err := tx.Exec(ctx, `TRUNCATE `+strings.Join(tables, ",")+` RESTART IDENTITY CASCADE`); err != nil {
 		return err
 	}
-	catalogos, err := migrations.FS.ReadFile("0003_catalogos.up.sql")
-	if err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, string(catalogos)); err != nil {
-		return err
+	for _, f := range []string{"0003_catalogos.up.sql", "0006_catalogos_v2.up.sql"} {
+		catalogos, err := migrations.FS.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, string(catalogos)); err != nil {
+			return err
+		}
 	}
 	return os.RemoveAll(files.Dir)
 }
@@ -59,15 +61,21 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		if err := resetDB(ctx, tx, files); err != nil {
 			return err
 		}
-		// Mismo orden que la migración de catálogos (ids 1..n).
-		tipos := []string{"Almacenamiento y estanterías", "Orden y limpieza", "Equipos de emergencia", "Señalización", "Instalaciones eléctricas",
-			"Tránsito de montacargas", "Infraestructura", "Uso de EPP", "Otro"}
+		// Los catálogos se buscan por nombre (ver migraciones 0003 y 0006).
+		idDe := func(tabla, nombre string) int {
+			var id int
+			if err := tx.QueryRow(ctx, `SELECT id FROM `+tabla+` WHERE nombre=$1`, nombre).Scan(&id); err != nil {
+				panic(tabla + ": " + nombre)
+			}
+			return id
+		}
+		almacen, sst, mant, adm := idDe("areas", "Almacén"), idDe("areas", "SST"), idDe("areas", "Mantenimiento"), idDe("areas", "Administración")
 
 		// Puestos (ids 1-7)
 		for _, p := range [][]any{
-			{"Operario de almacén 1", "trabajador", 1}, {"Operario de almacén 2", "trabajador", 2}, {"Auxiliar de despacho", "trabajador", 3},
-			{"Operador de montacargas", "trabajador", 4}, {"Jefa de SST", "sst", 8}, {"Técnico de mantenimiento", "mantenimiento", 6},
-			{"Asistente de administración", "administracion", 7},
+			{"Operario de almacén 1", "trabajador", almacen}, {"Operario de almacén 2", "trabajador", almacen}, {"Auxiliar de despacho", "trabajador", almacen},
+			{"Operador de montacargas", "trabajador", almacen}, {"Jefa de SST", "sst", sst}, {"Técnico de mantenimiento", "mantenimiento", mant},
+			{"Asistente de administración", "administracion", adm},
 		} {
 			ex(`INSERT INTO puestos (nombre, rol, area_id) VALUES ($1,$2,$3)`, p...)
 		}
@@ -75,15 +83,15 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		// Personas (ids 1-7 activos, 8 anterior, 9 pendiente)
 		hash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
 		personas := [][]any{
-			{"71234567", "Luis Quispe", "luisquispe@gmail.com", "987 112 334", 1, "activo", 420},
-			{"70456123", "Pedro Huamán", "pedro.hc@hotmail.com", "965 774 120", 2, "activo", 260},
-			{"72561894", "María Flores", "mflores.d@gmail.com", "944 208 991", 3, "activo", 190},
-			{"70918273", "Jorge Ramos", "jramos88@gmail.com", "912 336 450", 4, "activo", 610},
-			{"45678912", "Ana Torres", "atorres.sst@gmail.com", "998 450 216", 8, "activo", 730},
-			{"43219876", "Carlos Mendoza", "cmendoza.mant@gmail.com", "976 551 803", 6, "activo", 540},
-			{"46781234", "Rosa Chávez", "rchavez.adm@gmail.com", "953 667 142", 7, "activo", 320},
-			{"70112908", "Raúl Paredes", "raul.paredes@gmail.com", "955 100 200", 2, "inactivo", 900},
-			{"74561230", "Kevin Salazar", "kevin.salazar@gmail.com", "981 640 327", 2, "pendiente", 1},
+			{"71234567", "Luis Quispe", "luisquispe@gmail.com", "987 112 334", almacen, "activo", 420},
+			{"70456123", "Pedro Huamán", "pedro.hc@hotmail.com", "965 774 120", almacen, "activo", 260},
+			{"72561894", "María Flores", "mflores.d@gmail.com", "944 208 991", almacen, "activo", 190},
+			{"70918273", "Jorge Ramos", "jramos88@gmail.com", "912 336 450", almacen, "activo", 610},
+			{"45678912", "Ana Torres", "atorres.sst@gmail.com", "998 450 216", sst, "activo", 730},
+			{"43219876", "Carlos Mendoza", "cmendoza.mant@gmail.com", "976 551 803", mant, "activo", 540},
+			{"46781234", "Rosa Chávez", "rchavez.adm@gmail.com", "953 667 142", adm, "activo", 320},
+			{"70112908", "Raúl Paredes", "raul.paredes@gmail.com", "955 100 200", almacen, "inactivo", 900},
+			{"74561230", "Kevin Salazar", "kevin.salazar@gmail.com", "981 640 327", almacen, "pendiente", 1},
 		}
 		for _, p := range personas {
 			ex(`INSERT INTO usuarios (dni, nombres, correo, celular, password_hash, area_id, estado, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,`+sprintf(ago, 8)+`)`,
@@ -111,10 +119,14 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		tx.QueryRow(ctx, `INSERT INTO archivos (ruta, mime, bytes, subido_por) VALUES ($1,'image/png',$2,5) RETURNING id::text`, name, size).Scan(&foto)
 
 		// Inventario
+		for _, r := range [][]any{
+			{"Casco de seguridad", 12, 5}, {"Guantes de seguridad", 30, 10}, {"Botas de seguridad", 0, 3}, {"Chaleco reflectivo", 15, 5},
+			{"Tapones auditivos", 50, 20}, {"Tafilete", 6, 3}, {"Mascarilla", 40, 15}, {"Faja", 4, 3}, {"Protector solar", 2, 4}, {"Barbiquejo", 10, 4},
+		} {
+			ex(`UPDATE recursos SET stock=$2, stock_minimo=$3 WHERE nombre=$1`, r...)
+		}
 		inv := [][]any{
-			{1, "Casco de seguridad", 12, 5}, {1, "Guantes anticorte (par)", 30, 10}, {1, "Lentes de seguridad", 4, 6},
-			{1, "Zapatos de seguridad talla 42", 0, 3}, {1, "Zapatos de seguridad talla 40", 5, 3}, {1, "Chaleco reflectivo", 15, 5},
-			{1, "Tapones auditivos (par)", 50, 20}, {1, "Arnés de seguridad", 3, 2},
+			{1, "Lentes de seguridad", 4, 6}, {1, "Arnés de seguridad", 3, 2},
 			{2, "Extintor PQS 6 kg", 8, 6}, {2, "Extintor CO2 5 kg", 2, 2},
 			{3, "Señal de salida", 10, 4}, {3, "Señal de riesgo eléctrico", 3, 3}, {3, "Señal de ruta de evacuación", 14, 8},
 			{4, "Botiquín completo", 4, 3}, {4, "Paquete de gasas estériles", 6, 10}, {5, "Luz de emergencia LED", 5, 4},
@@ -124,31 +136,24 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		}
 
 		// Hallazgos: desc, detalle, tipo, ubicación, área resp, riesgo, prioridad, estado, días, cerrado (días o -1)
-		ubic := map[string]int{"Almacén A": 1, "Almacén B": 2, "Zona de carga": 3, "Patio de maniobras": 4, "Oficinas": 5}
-		resp := map[string]int{"Mantenimiento": 6, "Administración": 7, "SST": 8, "Calidad": 9}
-		tipoID := func(n string) int {
-			for i, t := range tipos {
-				if t == n {
-					return i + 1
-				}
-			}
-			return len(tipos)
-		}
+		ubic := func(n string) int { return idDe("areas", n) }
+		resp := func(n string) int { return idDe("areas", n) }
+		tipoID := func(n string) int { return idDe("tipos_hallazgo", n) }
 		hs := [][]any{
-			{"Travesaño del rack 4 deformado", "El travesaño inferior del rack 4 presenta una deformación visible por impacto de montacargas.", "Almacenamiento y estanterías", "Almacén A", "Mantenimiento", "alto", "alta", "cerrado", 150.0, 143.0},
-			{"Pasadizo obstruido con parihuelas", "Parihuelas vacías apiladas en el pasadizo principal reducen el ancho libre de evacuación.", "Orden y limpieza", "Almacén B", "SST", "medio", "media", "cerrado", 131.0, 129.0},
-			{"Extintor PQS con carga vencida", "Extintor junto a la puerta de la zona de carga con tarjeta de recarga vencida hace dos meses.", "Equipos de emergencia", "Zona de carga", "Administración", "alto", "alta", "cerrado", 112.0, 105.0},
-			{"Señal de salida despintada", "La señal de salida del lado norte está decolorada y no es legible a más de 5 metros.", "Señalización", "Almacén A", "SST", "bajo", "baja", "cerrado", 96.0, 82.0},
-			{"Cable expuesto en tablero eléctrico", "Tablero del patio con la puerta abierta y un conductor sin aislamiento.", "Instalaciones eléctricas", "Patio de maniobras", "Mantenimiento", "alto", "alta", "cerrado", 81.0, 77.0},
-			{"Derrame de líquido en pasillo 2", "Derrame reportado en el pasillo 2.", "Orden y limpieza", "Almacén A", "SST", "bajo", "baja", "descartado", 70.0, -1.0},
-			{"Montacargas sin alarma de retroceso", "El montacargas 02 no emite alarma sonora al retroceder.", "Tránsito de montacargas", "Patio de maniobras", "Mantenimiento", "alto", "alta", "cerrado", 61.0, 52.0},
-			{"Botiquín incompleto en oficina de despacho", "Faltan gasas, vendas y alcohol en el botiquín de la oficina de despacho.", "Equipos de emergencia", "Oficinas", "Administración", "medio", "media", "cerrado", 46.0, 41.0},
-			{"Luz de emergencia del pasillo 3 no enciende", "En la prueba de corte de energía, la luz de emergencia del pasillo 3 no encendió.", "Equipos de emergencia", "Almacén A", "Mantenimiento", "alto", "alta", "en_atencion", 3.0, -1.0},
-			{"Fisuras en el piso de la zona de carga", "Fisuras de 1 a 2 cm en la losa, en la ruta de tránsito de transpaletas.", "Infraestructura", "Zona de carga", "Mantenimiento", "medio", "media", "en_atencion", 9.0, -1.0},
-			{"Rutas de evacuación sin señalizar", "Faltan señales de ruta de evacuación en el almacén B tras la redistribución de racks.", "Señalización", "Almacén B", "Administración", "medio", "media", "en_atencion", 13.0, -1.0},
-			{"Extintores CO2 por recargar", "Los dos extintores de CO2 del área eléctrica vencen su recarga este mes.", "Equipos de emergencia", "Zona de carga", "Administración", "alto", "alta", "en_atencion", 6.0, -1.0},
-			{"Cajas apiladas sobre la altura permitida", "Columna de cajas en el almacén B supera la línea de altura máxima de apilamiento.", "Almacenamiento y estanterías", "Almacén B", "Calidad", "medio", "media", "registrado", 1.0, -1.0},
-			{"Mancha de aceite junto al montacargas 01", "Mancha de aceite en el área de estacionamiento del montacargas 01.", "Orden y limpieza", "Patio de maniobras", "SST", "bajo", "baja", "registrado", 0.2, -1.0},
+			{"Travesaño del rack 4 deformado", "El travesaño inferior del rack 4 presenta una deformación visible por impacto de montacargas.", "Condición insegura", "Sede Guardia Civil", "Mantenimiento", "alto", "alta", "cerrado", 150.0, 143.0},
+			{"Pasadizo obstruido con parihuelas", "Parihuelas vacías apiladas en el pasadizo principal reducen el ancho libre de evacuación.", "Condición insegura", "Sede Guardia Peruana 1465", "SST", "medio", "media", "cerrado", 131.0, 129.0},
+			{"Extintor PQS con carga vencida", "Extintor junto a la puerta de la zona de carga con tarjeta de recarga vencida hace dos meses.", "Condición insegura", "Sede Guardia Peruana 1479", "Administración", "alto", "alta", "cerrado", 112.0, 105.0},
+			{"Señal de salida despintada", "La señal de salida del lado norte está decolorada y no es legible a más de 5 metros.", "Incumplimiento documental", "Sede Guardia Civil", "SST", "bajo", "baja", "cerrado", 96.0, 82.0},
+			{"Cable expuesto en tablero eléctrico", "Tablero del patio con la puerta abierta y un conductor sin aislamiento.", "Condición insegura", "Sede Guardia Peruana 1479", "Mantenimiento", "alto", "alta", "cerrado", 81.0, 77.0},
+			{"Derrame de líquido en pasillo 2", "Derrame reportado en el pasillo 2.", "Condición insegura", "Sede Guardia Civil", "SST", "bajo", "baja", "descartado", 70.0, -1.0},
+			{"Montacargas sin alarma de retroceso", "El montacargas 02 no emite alarma sonora al retroceder.", "Acto inseguro", "Sede Guardia Peruana 1479", "Mantenimiento", "alto", "alta", "cerrado", 61.0, 52.0},
+			{"Botiquín incompleto en oficina de despacho", "Faltan gasas, vendas y alcohol en el botiquín de la oficina de despacho.", "Condición insegura", "Laboratorio", "Administración", "medio", "media", "cerrado", 46.0, 41.0},
+			{"Luz de emergencia del pasillo 3 no enciende", "En la prueba de corte de energía, la luz de emergencia del pasillo 3 no encendió.", "Condición insegura", "Sede Guardia Civil", "Mantenimiento", "alto", "alta", "en_atencion", 3.0, -1.0},
+			{"Fisuras en el piso de la zona de carga", "Fisuras de 1 a 2 cm en la losa, en la ruta de tránsito de transpaletas.", "Oportunidad de mejora", "Sede Guardia Peruana 1479", "Mantenimiento", "medio", "media", "en_atencion", 9.0, -1.0},
+			{"Rutas de evacuación sin señalizar", "Faltan señales de ruta de evacuación en el almacén B tras la redistribución de racks.", "Incumplimiento documental", "Sede Guardia Peruana 1465", "Administración", "medio", "media", "en_atencion", 13.0, -1.0},
+			{"Extintores CO2 por recargar", "Los dos extintores de CO2 del área eléctrica vencen su recarga este mes.", "Condición insegura", "Sede Guardia Peruana 1479", "Administración", "alto", "alta", "en_atencion", 6.0, -1.0},
+			{"Cajas apiladas sobre la altura permitida", "Columna de cajas en el almacén B supera la línea de altura máxima de apilamiento.", "Condición insegura", "Sede Guardia Peruana 1465", "Almacén", "medio", "media", "registrado", 1.0, -1.0},
+			{"Mancha de aceite junto al montacargas 01", "Mancha de aceite en el área de estacionamiento del montacargas 01.", "Condición insegura", "Sede Guardia Peruana 1479", "SST", "bajo", "baja", "registrado", 0.2, -1.0},
 		}
 		for i, h := range hs {
 			id := i + 1
@@ -162,13 +167,15 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 			}
 			ex(`INSERT INTO hallazgos (descripcion, detalle, tipo_id, ubicacion_id, area_responsable_id, nivel_riesgo, prioridad, responsable_id, estado, motivo_descarte, created_at, cerrado_at)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,5,$8,$9,`+sprintf(ago, 10)+`, CASE WHEN $11::float IS NULL THEN NULL ELSE `+sprintf(ago, 11)+` END)`,
-				h[0], h[1], tipoID(h[2].(string)), ubic[h[3].(string)], resp[h[4].(string)], h[5], h[6], h[7], motivo, h[8], cerrado)
+				h[0], h[1], tipoID(h[2].(string)), ubic(h[3].(string)), resp(h[4].(string)), h[5], h[6], h[7], motivo, h[8], cerrado)
 			ex(`INSERT INTO hallazgo_fotos (hallazgo_id, archivo_id) VALUES ($1,$2)`, id, foto)
 			ex(`INSERT INTO historial (entidad, entidad_id, accion, usuario_id, puesto_id, created_at) VALUES ('hallazgo',$1,'Registró el hallazgo durante la inspección',5,5,`+sprintf(ago, 2)+`)`, id, h[8])
 			if cerrado != nil {
 				ex(`INSERT INTO historial (entidad, entidad_id, accion, usuario_id, puesto_id, created_at) VALUES ('hallazgo',$1,'Cerró el hallazgo',5,5,`+sprintf(ago, 2)+`)`, id, cerrado)
 			}
 		}
+
+		ex(`UPDATE hallazgos SET fecha = created_at::date`)
 
 		// Tareas: hallazgo, título, indicaciones, puesto, creada (días), límite (días, negativo = futuro), estado, cerrada (días o -1), pasos
 		type paso struct {
@@ -203,9 +210,9 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		}
 		for i, t := range ts {
 			id := i + 1
-			area := 6
+			area := mant
 			if t.puesto == 7 {
-				area = 7
+				area = adm
 			}
 			var cerrada any
 			if t.cerrada >= 0 {
@@ -231,18 +238,18 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		ex(`INSERT INTO historial (entidad, entidad_id, accion, usuario_id, puesto_id, created_at) VALUES ('tarea',2,'Aceptó la tarea',6,6,now() - interval '7 days'),
 			('tarea',3,'Marcó la tarea como terminada',7,7,now() - interval '22 hours'), ('tarea',4,'Solicitó modificación de plazo',7,7,now() - interval '7 hours')`)
 
-		// Solicitudes de EPP: puesto, recurso, motivo, descripción, días, estado
+		// Solicitudes de EPP: puesto, recurso, motivo, talla, días, estado
 		epp := [][]any{
-			{1, 2, "Desgaste por uso", "Los guantes tienen la palma rota y ya no protegen al manipular flejes.", 20.0, "entregada"},
-			{1, 4, "Rotura o daño", "La suela del zapato derecho se despegó en la punta.", 4.0, "en_espera"},
-			{2, 1, "Rotura o daño", "El casco tiene una fisura en la parte superior después de un golpe con un rack.", 0.15, "enviada"},
-			{3, 3, "Desgaste por uso", "Las lunas están rayadas y no se ve bien al leer etiquetas.", 1.0, "enviada"},
-			{4, 6, "Desgaste por uso", "El chaleco perdió las cintas reflectivas de la espalda.", 2.0, "aprobada"},
-			{2, 7, "Pérdida", "Perdí los tapones en el comedor.", 10.0, "rechazada"},
+			{1, "Guantes de seguridad", "Desgaste por uso", "L", 20.0, "entregada"},
+			{1, "Botas de seguridad", "Rotura o daño", "42", 4.0, "en_espera"},
+			{2, "Casco de seguridad", "Rotura o daño", nil, 0.15, "enviada"},
+			{3, "Faja", "Desgaste por uso", "M", 1.0, "enviada"},
+			{4, "Chaleco reflectivo", "Desgaste por uso", "XL", 2.0, "aprobada"},
+			{2, "Tapones auditivos", "Pérdida", nil, 10.0, "rechazada"},
 		}
 		for i, e := range epp {
-			ex(`INSERT INTO solicitudes_epp (puesto_id, usuario_id, recurso_id, motivo, descripcion, foto_id, estado, created_at) VALUES ($1,$1,$2,$3,$4,$5,$6,`+sprintf(ago, 7)+`)`,
-				e[0], e[1], e[2], e[3], foto, e[5], e[4])
+			ex(`INSERT INTO solicitudes_epp (puesto_id, usuario_id, recurso_id, motivo, talla, foto_id, estado, created_at) VALUES ($1,$1,$2,$3,$4,$5,$6,`+sprintf(ago, 7)+`)`,
+				e[0], idDe("recursos", e[1].(string)), e[2], e[3], foto, e[5], e[4])
 			ex(`INSERT INTO historial (entidad, entidad_id, accion, usuario_id, puesto_id, created_at) VALUES ('solicitud_epp',$1,'Envió la solicitud',$2,$2,`+sprintf(ago, 3)+`)`, i+1, e[0], e[4])
 		}
 		ex(`UPDATE solicitudes_epp SET epp_anterior_devuelto=true, formato_firmado=true, entregada_at=now() - interval '18 days' WHERE id=1`)

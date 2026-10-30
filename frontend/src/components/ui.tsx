@@ -72,7 +72,8 @@ export function Toast() {
 
 export const fmtD = (s?: string | null) => (s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('es-PE') : '—')
 export const fmtDT = (s?: string | null) => (s ? new Date(s).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : '—')
-export const today = (plusDays = 0) => new Date(Date.now() + plusDays * 864e5).toISOString().slice(0, 10)
+// Fecha local (no UTC): de noche en Perú, la fecha UTC ya es la del día siguiente.
+export const today = (plusDays = 0) => new Date(Date.now() + plusDays * 864e5 - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10)
 
 const LABELS: Record<string, [string, string]> = {
   enviada: ['Enviada', 'bg-blue-100 text-blue-800'],

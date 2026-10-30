@@ -38,7 +38,7 @@ SELECT json_build_object(
         count(h.id) FILTER (WHERE h.nivel_riesgo = 'medio') AS medio,
         count(h.id) FILTER (WHERE h.nivel_riesgo = 'bajo') AS bajo
       FROM generate_series(date_trunc('month', now()) - interval '5 months', date_trunc('month', now()), interval '1 month') m
-      LEFT JOIN h ON date_trunc('month', h.created_at) = m GROUP BY m) x)
+      LEFT JOIN h ON date_trunc('month', h.fecha) = m GROUP BY m) x)
 )`).Scan(&out)
 	return out, err
 }

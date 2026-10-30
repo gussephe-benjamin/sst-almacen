@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { Me, Row } from '../api/client'
-import { Btn, plural, Banner, Chip, Field, Img, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
+import { ZoomIn } from 'lucide-react'
+import { fileUrl, type Me, type Row } from '../api/client'
+import { Btn, plural, Banner, Chip, Field, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
 
 // ---------- Dashboard ----------
 
@@ -90,6 +91,7 @@ export function Biblioteca({ me }: { me: Me }) {
   const q = useApi(`/biblioteca?tipo=${tab}`)
   const act = useAction()
   const [ver, setVer] = useState<Row | null>(null)
+  const [zoom, setZoom] = useState(false)
   const [edit, setEdit] = useState<Row | null>(null)
   const sst = me.rol === 'sst'
   return (
@@ -98,13 +100,19 @@ export function Biblioteca({ me }: { me: Me }) {
       <Tabs value={tab} onChange={setTab} tabs={[['', 'Todo'], ...(TIPOS as [string, string][])]} />
       <Loading q={q} />
       {q.data?.length === 0 && <p className="muted">{sst ? 'Aún no hay contenidos. Usa “Publicar” para compartir afiches y procedimientos.' : 'Aún no hay contenidos publicados.'}</p>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Galería: la imagen se ve de inmediato; al tocarla se abre el detalle con zoom. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {(q.data ?? []).map((b: Row) => (
-          <div key={b.id} className="card cursor-pointer hover:border-blue-300" onClick={() => setVer(b)}>
-            <div className="text-xs uppercase text-slate-500">{b.tipo}{b.codigo && ` · ${b.codigo}`}</div>
-            <div className="font-semibold">{b.titulo}</div>
-            <p className="muted mt-1">{b.resumen}</p>
-          </div>
+          <button key={b.id} type="button" onClick={() => { setZoom(false); setVer(b) }}
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-sm transition hover:border-blue-300 hover:shadow">
+            {b.imagen_id
+              ? <img src={fileUrl(b.imagen_id)} alt={b.titulo} loading="lazy" className="aspect-[3/4] w-full bg-slate-100 object-cover" />
+              : <div className="flex aspect-[3/4] w-full items-center justify-center bg-slate-100 p-3 text-center text-sm font-semibold text-slate-500">{b.titulo}</div>}
+            <div className="p-2">
+              <div className="text-[11px] uppercase text-slate-500">{b.tipo}{b.codigo && ` · ${b.codigo}`}</div>
+              <div className="line-clamp-2 text-sm font-semibold">{b.titulo}</div>
+            </div>
+          </button>
         ))}
       </div>
       {ver && (
@@ -114,7 +122,18 @@ export function Biblioteca({ me }: { me: Me }) {
             <Btn className="btn" onClick={() => { setEdit({ ...ver, imagen_id: ver.imagen_id ?? '' }); setVer(null) }}>Editar</Btn>
           </>}>
           <div className="text-xs uppercase text-slate-500">{ver.tipo}{ver.codigo && ` · ${ver.codigo}`} · {fmtD(ver.created_at)}</div>
-          <Img id={ver.imagen_id} className="w-full" />
+          {ver.imagen_id && <>
+            <button type="button" onClick={() => setZoom(true)} title="Ampliar imagen" className="relative block w-full">
+              <img src={fileUrl(ver.imagen_id)} alt={ver.titulo} className="max-h-[60vh] w-full rounded-md border border-slate-200 bg-slate-50 object-contain" />
+              <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-xs text-white"><ZoomIn size={12} /> Ampliar</span>
+            </button>
+            {zoom && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black p-2" onClick={() => setZoom(false)}>
+                <img src={fileUrl(ver.imagen_id)} alt={ver.titulo} className="h-full w-full object-contain" />
+                <span className="absolute right-3 top-3 rounded bg-white/20 px-2 py-1 text-sm text-white">Toca para cerrar</span>
+              </div>
+            )}
+          </>}
           <p className="font-medium">{ver.resumen}</p>
           {String(ver.cuerpo).split(/\n\s*\n/).filter(Boolean).map((p, i) => <p key={i} className="text-sm">{p}</p>)}
         </Modal>

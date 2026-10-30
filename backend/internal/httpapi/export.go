@@ -9,7 +9,7 @@ import (
 )
 
 var exportCols = []struct{ title, key string }{
-	{"Código", "codigo"}, {"Fecha", "created_at"}, {"Descripción", "descripcion"}, {"Tipo", "tipo"}, {"Ubicación", "ubicacion"},
+	{"Código", "codigo"}, {"Fecha", "fecha"}, {"Descripción", "descripcion"}, {"Tipo", "tipo"}, {"Ubicación", "ubicacion"},
 	{"Área responsable", "area_responsable"}, {"Riesgo", "nivel_riesgo"}, {"Prioridad", "prioridad"}, {"Estado", "estado"},
 }
 

@@ -15,10 +15,10 @@ import (
 func (s *Svc) Catalogos(ctx context.Context) (map[string]json.RawMessage, error) {
 	out := map[string]json.RawMessage{}
 	qs := map[string]string{
-		"areas":      `SELECT id, nombre, tipo, puede_resolver_hallazgos, es_ubicacion FROM areas ORDER BY id`,
-		"tipos":      `SELECT id, nombre FROM tipos_hallazgo ORDER BY nombre`,
+		"areas":      `SELECT id, nombre, tipo, puede_resolver_hallazgos, es_ubicacion FROM areas WHERE activa ORDER BY orden, id`,
+		"tipos":      `SELECT id, nombre FROM tipos_hallazgo WHERE activo ORDER BY orden, nombre`,
 		"categorias": `SELECT id, nombre FROM categorias_recurso ORDER BY id`,
-		"epp":        `SELECT r.id, r.nombre FROM recursos r JOIN categorias_recurso c ON c.id = r.categoria_id WHERE c.nombre = 'EPP' AND r.activo ORDER BY r.nombre`,
+		"epp":        `SELECT r.id, r.nombre, r.tallas FROM recursos r JOIN categorias_recurso c ON c.id = r.categoria_id WHERE c.nombre = 'EPP' AND r.activo ORDER BY r.nombre`,
 		"puestos_apoyo": `SELECT p.id, p.nombre, p.rol, u.nombres AS persona FROM puestos p
 			LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id
 			WHERE p.rol IN ('mantenimiento','administracion') ORDER BY p.id`,
@@ -34,7 +34,7 @@ func (s *Svc) Catalogos(ctx context.Context) (map[string]json.RawMessage, error)
 }
 
 func (s *Svc) AreasPublicas(ctx context.Context) (json.RawMessage, error) {
-	return List(ctx, s.DB, `SELECT id, nombre, tipo FROM areas ORDER BY id`)
+	return List(ctx, s.DB, `SELECT id, nombre, tipo FROM areas WHERE activa AND NOT es_ubicacion ORDER BY orden, id`)
 }
 
 // ---------- Biblioteca ----------
@@ -79,10 +79,7 @@ func (s *Svc) BiblioGuardar(ctx context.Context, a *Actor, id int, in BiblioIn) 
 				VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, in.Tipo, in.Codigo, in.Titulo, in.Resumen, in.Cuerpo, in.ImagenID, a.UserID).Scan(&id); err != nil {
 				return err
 			}
-			if err := Hist(ctx, tx, a, "biblioteca", id, "Publicó el contenido"); err != nil {
-				return err
-			}
-			return Notify(ctx, tx, "trabajador", 0, "Nuevo en la biblioteca: "+in.Titulo+".", "biblioteca", id)
+			return Hist(ctx, tx, a, "biblioteca", id, "Publicó el contenido")
 		}
 		tag, err := tx.Exec(ctx, `UPDATE contenidos_biblioteca SET tipo=$2, codigo=$3, titulo=$4, resumen=$5, cuerpo=$6, imagen_id=$7, updated_at=now()
 			WHERE id=$1 AND eliminado_at IS NULL`, id, in.Tipo, in.Codigo, in.Titulo, in.Resumen, in.Cuerpo, in.ImagenID)

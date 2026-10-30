@@ -100,7 +100,7 @@ func (c Config) Problems() []string {
 func Load() Config {
 	loadDotEnv()
 	c := Config{
-		DatabaseURL:  get("DATABASE_URL", "postgres://sst:sst@localhost:5433/sst?sslmode=disable"),
+		DatabaseURL:  get("DATABASE_URL", "postgres://sst:sst@localhost:5434/sst?sslmode=disable"),
 		JWTSecret:    get("JWT_SECRET", "dev-secret-cambiar"),
 		UploadDir:    get("UPLOAD_DIR", "./data/uploads"),
 		Port:         get("PORT", "8081"),

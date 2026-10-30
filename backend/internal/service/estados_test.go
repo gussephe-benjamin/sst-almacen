@@ -47,9 +47,20 @@ func TestTarea(t *testing.T) {
 
 func TestPuedeCerrarHallazgo(t *testing.T) {
 	assert.True(t, PuedeCerrarHallazgo("registrado", "SST", 0, 0))
-	assert.True(t, PuedeCerrarHallazgo("registrado", "Calidad", 0, 0))
+	assert.True(t, PuedeCerrarHallazgo("registrado", "Vigilancia", 0, 0))
 	assert.False(t, PuedeCerrarHallazgo("registrado", "Mantenimiento", 0, 0))
+	assert.False(t, PuedeCerrarHallazgo("registrado", "Administración", 0, 0))
 	assert.True(t, PuedeCerrarHallazgo("en_atencion", "Mantenimiento", 2, 2))
 	assert.False(t, PuedeCerrarHallazgo("en_atencion", "Mantenimiento", 2, 1))
 	assert.False(t, PuedeCerrarHallazgo("cerrado", "SST", 0, 0))
+}
+
+func TestTallaValida(t *testing.T) {
+	letras, calzado := "letras", "calzado"
+	assert.True(t, TallaValida(&letras, "M"))
+	assert.False(t, TallaValida(&letras, "40"))
+	assert.True(t, TallaValida(&calzado, "40"))
+	assert.False(t, TallaValida(&calzado, ""))
+	assert.True(t, TallaValida(nil, ""))
+	assert.False(t, TallaValida(nil, "M"))
 }

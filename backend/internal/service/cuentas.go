@@ -16,7 +16,7 @@ import (
 
 // Área por defecto de cada rol cuando la cuenta del .env no indica una.
 var areaPorRol = map[string]string{
-	"admin": "Dirección", "sst": "SST", "trabajador": "Almacén A", "mantenimiento": "Mantenimiento", "administracion": "Administración",
+	"admin": "Dirección", "sst": "SST", "trabajador": "Almacén", "mantenimiento": "Mantenimiento", "administracion": "Administración",
 }
 
 var puestoPorRol = map[string]string{

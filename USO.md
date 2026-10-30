@@ -47,11 +47,14 @@ Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo va
 
 ## Trabajador
 
-1. **Solicitar EPP:** elige el EPP, el motivo y describe el problema, y toma una **foto** del EPP dañado. El botón *Enviar solicitud* se activa cuando todo está completo.
+1. **Solicitar EPP:** elige el EPP, el motivo y tu **talla**, y toma una **foto** del EPP dañado. El botón *Enviar solicitud* se activa cuando todo está completo.
+   - **Talla por letras (XS a XXL):** chaleco reflectivo, guantes de seguridad y faja.
+   - **Talla de calzado (35 a 45):** botas de seguridad.
+   - **Talla única:** casco, tafilete, tapones auditivos, mascarilla, protector solar y barbiquejo. No se pide talla.
 2. **Mis solicitudes:** cada solicitud muestra su avance (*Enviada → Aprobada → Entregada*). Si queda *En espera*, ves la fecha estimada; si es *Rechazada*, el motivo.
 3. **Aprobada:** acércate a SST con el EPP anterior para recibir el nuevo y firmar el formato.
-4. **Biblioteca:** afiches, flyers, procedimientos e instructivos, con filtros por tipo.
-5. **Notificaciones:** te avisan de cada cambio en tus solicitudes y de los contenidos nuevos de la biblioteca. Al tocar una, vas directo al registro.
+4. **Biblioteca:** una galería con las imágenes de los afiches, flyers, procedimientos e instructivos, con filtros por tipo. Al tocar una, ves su descripción y puedes **ampliar** la imagen.
+5. **Notificaciones:** te avisan de cada cambio en tus solicitudes de EPP. Al tocar una, vas directo a la solicitud.
 
 ## SST
 
@@ -69,10 +72,13 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 - Si ingresa stock de un recurso con solicitudes en espera, llega un aviso para atenderlas.
 
 ### Hallazgos
-1. **Registrar hallazgo:** descripción, detalle, tipo, ubicación, **área responsable**, nivel de riesgo (la prioridad se propone sola) y una foto.
+1. **Registrar hallazgo:** descripción, detalle, tipo, ubicación, **área responsable**, nivel de riesgo (la prioridad se propone sola), **fecha del hallazgo** y una **foto obligatoria**.
+   - **Tipos:** condición insegura, acto inseguro, incidente / cuasiaccidente, incumplimiento documental, oportunidad de mejora y hallazgo positivo.
+   - **Ubicaciones:** Sede Guardia Civil, Sede Guardia Peruana 1465, Sede Guardia Peruana 1479 y Laboratorio.
+   - **Áreas:** SST, Administración, Comercial, Mantenimiento, Almacén, Transporte y Vigilancia.
 2. Según el área responsable:
    - **Mantenimiento o Administración:** se resuelve con **tareas**. *Crear tarea* pide el título, las indicaciones, el responsable, la fecha límite y los pasos. El hallazgo pasa a *En atención*.
-   - **SST o Calidad:** se puede cerrar directamente.
+   - **SST, Comercial, Almacén, Transporte o Vigilancia:** estas áreas no reciben tareas en la plataforma, así que SST cierra el hallazgo directamente.
 3. **Cerrar hallazgo:** aparece cuando todas sus tareas están cerradas.
 4. **Descartar:** pide un motivo y solo es posible sin tareas activas.
 5. Filtra por estado, riesgo, ubicación, área responsable o texto. **Excel** y **PDF** exportan exactamente la lista filtrada.
@@ -85,7 +91,8 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 
 ### Tareas internas, Biblioteca y Puestos
 - **Tareas internas:** tablero *Pendientes / En curso / Completadas* para el trabajo propio de SST.
-- **Biblioteca:** *Publicar* un contenido (con imagen opcional) avisa a todos los trabajadores. También puedes editarlo o eliminarlo.
+- **Biblioteca:** *Publicar* un contenido con su imagen; los trabajadores la ven en la galería. También puedes editarlo o eliminarlo.
+- **Inventario de EPP:** al crear un EPP nuevo, elige qué tallas puede pedir el trabajador: talla única, por letras o de calzado.
 - **Puestos y usuarios:** SST también puede asignar los registros pendientes a un puesto.
 
 ## Mantenimiento y Administración

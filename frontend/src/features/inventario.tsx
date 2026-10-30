@@ -11,7 +11,8 @@ export function Inventario() {
   const [min, setMin] = useState<Row | null>(null)
   const [nuevo, setNuevo] = useState(false)
   const [v, setV] = useState({ cantidad: 1, nota: '', stock_minimo: 0 })
-  const [n, setN] = useState({ nombre: '', categoria_id: 1, stock: 0, stock_minimo: 0 })
+  const [n, setN] = useState({ nombre: '', categoria_id: 1, stock: 0, stock_minimo: 0, tallas: '' })
+  const esEpp = (cat.data?.categorias ?? []).find((c: Row) => c.id === n.categoria_id)?.nombre === 'EPP'
   const low = (q.data ?? []).filter((r: Row) => r.bajo_minimo)
 
   return (
@@ -56,13 +57,22 @@ export function Inventario() {
       )}
       {nuevo && (
         <Modal title="Nuevo recurso" onClose={() => setNuevo(false)}
-          footer={<Btn className="btn btn-primary" onClick={async () => { if (await act('/recursos', n, 'Recurso registrado.')) setNuevo(false) }}>Guardar</Btn>}>
+          footer={<Btn className="btn btn-primary" onClick={async () => { if (await act('/recursos', { ...n, tallas: esEpp ? n.tallas : '' }, 'Recurso registrado.')) setNuevo(false) }}>Guardar</Btn>}>
           <Field label="Nombre"><input className="inp" value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} /></Field>
           <Field label="Categoría">
             <select className="inp" value={n.categoria_id} onChange={(e) => setN({ ...n, categoria_id: +e.target.value })}>
               {(cat.data?.categorias ?? []).map((c: Row) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </Field>
+          {esEpp && (
+            <Field label="Tallas que puede elegir el trabajador">
+              <select className="inp" value={n.tallas} onChange={(e) => setN({ ...n, tallas: e.target.value })}>
+                <option value="">Talla única</option>
+                <option value="letras">Por letras (XS a XXL)</option>
+                <option value="calzado">Calzado (35 a 45)</option>
+              </select>
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Stock inicial"><input type="number" min={0} className="inp" value={n.stock} onChange={(e) => setN({ ...n, stock: +e.target.value })} /></Field>
             <Field label="Mínimo"><input type="number" min={0} className="inp" value={n.stock_minimo} onChange={(e) => setN({ ...n, stock_minimo: +e.target.value })} /></Field>

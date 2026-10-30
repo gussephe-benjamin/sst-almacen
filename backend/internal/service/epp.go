@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const eppSQL = `SELECT e.id, 'E-' || lpad(e.id::text, 3, '0') AS codigo, e.estado, e.motivo, e.descripcion,
+const eppSQL = `SELECT e.id, 'E-' || lpad(e.id::text, 3, '0') AS codigo, e.estado, e.motivo, e.descripcion, e.talla, r.tallas,
 	e.foto_id, e.fecha_espera, e.motivo_rechazo, e.epp_anterior_devuelto, e.formato_firmado, e.entregada_at, e.created_at,
 	r.id AS recurso_id, r.nombre AS recurso, r.stock, p.id AS puesto_id, p.nombre AS puesto, u.nombres AS trabajador, u.dni
 	FROM solicitudes_epp e JOIN recursos r ON r.id = e.recurso_id JOIN puestos p ON p.id = e.puesto_id
@@ -19,13 +19,33 @@ const eppSQL = `SELECT e.id, 'E-' || lpad(e.id::text, 3, '0') AS codigo, e.estad
 type EppIn struct {
 	RecursoID   int    `json:"recurso_id"`
 	Motivo      string `json:"motivo"`
+	Talla       string `json:"talla"`
 	Descripcion string `json:"descripcion"`
 	FotoID      string `json:"foto_id"`
 }
 
+// Tallas disponibles según el tipo de EPP; sin tipo, el EPP es de talla única.
+var Tallas = map[string][]string{
+	"letras":  {"XS", "S", "M", "L", "XL", "XXL"},
+	"calzado": {"35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"},
+}
+
+// TallaValida comprueba la talla elegida para un EPP con tipo de talla (nil = talla única).
+func TallaValida(tipo *string, talla string) bool {
+	if tipo == nil {
+		return talla == ""
+	}
+	for _, t := range Tallas[*tipo] {
+		if t == talla {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Svc) EppCrear(ctx context.Context, a *Actor, in EppIn) (int, error) {
-	if in.RecursoID == 0 || in.Motivo == "" || strings.TrimSpace(in.Descripcion) == "" {
-		return 0, Bad("datos_incompletos", "Elige el EPP, el motivo y describe el problema.")
+	if in.RecursoID == 0 || in.Motivo == "" {
+		return 0, Bad("datos_incompletos", "Elige el EPP y el motivo.")
 	}
 	if in.FotoID == "" {
 		return 0, Bad("foto_requerida", "Adjunta una foto del EPP dañado.")
@@ -33,15 +53,26 @@ func (s *Svc) EppCrear(ctx context.Context, a *Actor, in EppIn) (int, error) {
 	var id int
 	err := s.Tx(ctx, func(tx pgx.Tx) error {
 		var recurso string
-		if err := tx.QueryRow(ctx, `SELECT nombre FROM recursos WHERE id=$1`, in.RecursoID).Scan(&recurso); err != nil {
+		var tipo *string
+		if err := tx.QueryRow(ctx, `SELECT nombre, tallas FROM recursos WHERE id=$1`, in.RecursoID).Scan(&recurso, &tipo); err != nil {
 			return notFound(err)
 		}
-		if err := tx.QueryRow(ctx, `INSERT INTO solicitudes_epp (puesto_id, usuario_id, recurso_id, motivo, descripcion, foto_id)
-			VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, a.PuestoID, a.UserID, in.RecursoID, in.Motivo, in.Descripcion, in.FotoID).Scan(&id); err != nil {
+		if !TallaValida(tipo, in.Talla) {
+			return Bad("talla_requerida", "Elige tu talla.")
+		}
+		var talla *string
+		if in.Talla != "" {
+			talla = &in.Talla
+		}
+		if err := tx.QueryRow(ctx, `INSERT INTO solicitudes_epp (puesto_id, usuario_id, recurso_id, motivo, talla, descripcion, foto_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, a.PuestoID, a.UserID, in.RecursoID, in.Motivo, talla, strings.TrimSpace(in.Descripcion), in.FotoID).Scan(&id); err != nil {
 			return err
 		}
 		if err := Hist(ctx, tx, a, "solicitud_epp", id, "Envió la solicitud"); err != nil {
 			return err
+		}
+		if talla != nil {
+			recurso += " talla " + *talla
 		}
 		return Notify(ctx, tx, "sst", 0, fmt.Sprintf("%s solicitó cambio de %s (%s).", a.Nombre, recurso, Code("E", id)), "epp", id)
 	})

@@ -5,22 +5,30 @@ import { Btn, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoFi
 
 const MOTIVOS = ['Desgaste por uso', 'Rotura o daño', 'Pérdida', 'Talla incorrecta', 'Otro']
 
+// Mismas tallas que el servidor (service.Tallas). Sin tipo de talla, el EPP es de talla única.
+export const TALLAS: Record<string, string[]> = {
+  letras: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  calzado: ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+}
+
 export function SolicitarEpp() {
   const cat = useApi<Row>('/catalogos')
   const act = useAction()
   const nav = useNavigate()
-  const [f, setF] = useState({ recurso_id: 0, motivo: '', descripcion: '', foto_id: '' })
+  const [f, setF] = useState({ recurso_id: 0, motivo: '', talla: '', foto_id: '' })
+  const epp: Row | undefined = (cat.data?.epp ?? []).find((r: Row) => r.id === f.recurso_id)
+  const tallas = epp?.tallas ? TALLAS[epp.tallas] : null
   const submit = async () => {
     const r = await act('/epp', f, 'Solicitud enviada a SST.')
     if (r) nav('/mis-solicitudes')
   }
-  const listo = f.recurso_id && f.motivo && f.descripcion.trim() && f.foto_id
+  const listo = f.recurso_id && f.motivo && (!tallas || f.talla) && f.foto_id
   return (
     <Page title="Solicitar cambio de EPP" sub="Adjunta una foto del EPP dañado. SST revisará tu solicitud.">
       <div className="card max-w-md space-y-3">
         {cat.data && !cat.data.epp?.length && <Banner kind="warn">Aún no hay EPP registrados en el inventario. Avisa al área de SST.</Banner>}
         <Field label="EPP">
-          <select className="inp" value={f.recurso_id} onChange={(e) => setF({ ...f, recurso_id: +e.target.value })}>
+          <select className="inp" value={f.recurso_id} onChange={(e) => setF({ ...f, recurso_id: +e.target.value, talla: '' })}>
             <option value={0}>Selecciona…</option>
             {(cat.data?.epp ?? []).map((r: Row) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
           </select>
@@ -31,10 +39,19 @@ export function SolicitarEpp() {
             {MOTIVOS.map((m) => <option key={m}>{m}</option>)}
           </select>
         </Field>
-        <Field label="Describe el problema"><textarea className="inp" rows={3} value={f.descripcion} onChange={(e) => setF({ ...f, descripcion: e.target.value })} /></Field>
+        {epp && (tallas ? (
+          <Field label="Talla">
+            <div className="flex flex-wrap gap-1.5">
+              {tallas.map((t) => (
+                <button key={t} type="button" onClick={() => setF({ ...f, talla: t })}
+                  className={`min-w-11 rounded-md border px-2 py-1.5 text-sm ${f.talla === t ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-300 bg-white'}`}>{t}</button>
+              ))}
+            </div>
+          </Field>
+        ) : <p className="text-sm text-slate-600">Talla: <b>única</b></p>)}
         <PhotoField label="Foto del EPP" value={f.foto_id} onChange={(id) => setF({ ...f, foto_id: id })} />
         <Btn className="btn btn-primary w-full" disabled={!listo} onClick={submit}>Enviar solicitud</Btn>
-        {!listo && <p className="text-center text-xs text-slate-500">Completa el EPP, el motivo, la descripción y la foto.</p>}
+        {!listo && <p className="text-center text-xs text-slate-500">Completa el EPP, el motivo, {tallas ? 'la talla ' : ''}y la foto.</p>}
       </div>
     </Page>
   )
@@ -64,7 +81,7 @@ export function MisSolicitudes() {
         {(q.data ?? []).map((e: Row) => (
           <Link key={e.id} to={`/epp/${e.id}`} className="card block hover:border-blue-300">
             <div className="flex items-center justify-between">
-              <b>{e.recurso}</b>
+              <b>{e.recurso}{e.talla && <span className="font-normal text-slate-500"> · talla {e.talla}</span>}</b>
               <span className="text-xs text-slate-500">{e.codigo} · {fmtD(e.created_at)}</span>
             </div>
             <div className="mt-2"><Linea estado={e.estado} /></div>
@@ -100,7 +117,8 @@ export function EppDetalle({ me }: { me: Me }) {
             <dl className="grid grid-cols-[110px_1fr] gap-1 text-sm">
               {sst && <><dt className="text-slate-500">Trabajador</dt><dd>{e.trabajador}</dd><dt className="text-slate-500">Puesto</dt><dd>{e.puesto}</dd><dt className="text-slate-500">DNI</dt><dd>{e.dni}</dd></>}
               <dt className="text-slate-500">Motivo</dt><dd>{e.motivo}</dd>
-              <dt className="text-slate-500">Descripción</dt><dd>{e.descripcion}</dd>
+              <dt className="text-slate-500">Talla</dt><dd>{e.talla ?? 'Única'}</dd>
+              {e.descripcion && <><dt className="text-slate-500">Descripción</dt><dd>{e.descripcion}</dd></>}
               <dt className="text-slate-500">Fecha</dt><dd>{fmtDT(e.created_at)}</dd>
               {sst && <><dt className="text-slate-500">Stock</dt><dd>{e.stock}</dd></>}
             </dl>
@@ -155,7 +173,7 @@ export function EppSst() {
             {(q.data ?? []).map((e: Row) => (
               <tr key={e.id} className="click" onClick={() => nav(`/epp/${e.id}`)}>
                 <td>{e.codigo}</td><td>{e.trabajador}<div className="text-xs text-slate-500">{e.puesto}</div></td>
-                <td>{e.recurso}</td><td>{e.motivo}</td><td>{fmtD(e.created_at)}</td><td><Chip s={e.estado} /></td>
+                <td>{e.recurso}{e.talla && <div className="text-xs text-slate-500">Talla {e.talla}</div>}</td><td>{e.motivo}</td><td>{fmtD(e.created_at)}</td><td><Chip s={e.estado} /></td>
               </tr>
             ))}
           </tbody>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import type { Row } from '../api/client'
-import { Btn, confirmar, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, fmtD, today, useAction, useApi } from '../components/ui'
+import { Btn, confirmar, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoField, fmtD, toast, today, useAction, useApi } from '../components/ui'
 
 export function Hallazgos() {
   const cat = useApi<Row>('/catalogos')
@@ -48,7 +48,7 @@ export function Hallazgos() {
           <tbody>
             {(q.data ?? []).map((h: Row) => (
               <tr key={h.id} className="click" onClick={() => nav(`/hallazgos/${h.id}`)}>
-                <td>{h.codigo}<div className="text-xs text-slate-500">{fmtD(h.created_at)}</div></td>
+                <td>{h.codigo}<div className="text-xs text-slate-500">{fmtD(h.fecha)}</div></td>
                 <td>{h.descripcion}<div className="text-xs text-slate-500">{h.tipo}</div></td>
                 <td>{h.ubicacion}</td><td>{h.area_responsable}</td><td><Chip s={h.nivel_riesgo} /></td>
                 <td>{h.tareas ? `${h.tareas_cerradas}/${h.tareas}` : '—'}</td><td><Chip s={h.estado} /></td>
@@ -66,11 +66,13 @@ export function Hallazgos() {
 function NuevoHallazgo({ cat, onClose }: { cat?: Row; onClose: () => void }) {
   const act = useAction()
   const nav = useNavigate()
-  const [f, setF] = useState({ descripcion: '', detalle: '', tipo_id: 0, ubicacion_id: 0, area_responsable_id: 0, nivel_riesgo: 'medio', prioridad: 'media', fotos: [] as string[] })
+  const [f, setF] = useState({ descripcion: '', detalle: '', tipo_id: 0, ubicacion_id: 0, area_responsable_id: 0, nivel_riesgo: 'medio', prioridad: 'media', fecha: today(), fotos: [] as string[] })
   const [foto, setFoto] = useState('')
   const areas: Row[] = cat?.areas ?? []
   const save = async () => {
-    const r = await act('/hallazgos', { ...f, fotos: foto ? [foto] : [] }, 'Hallazgo registrado.')
+    if (!f.fecha) return toast('Indica la fecha del hallazgo.', true)
+    if (!foto) return toast('Adjunta una foto del hallazgo.', true)
+    const r = await act('/hallazgos', { ...f, fotos: [foto] }, 'Hallazgo registrado.')
     if (r) nav(`/hallazgos/${r.id}`)
   }
   const sel = (k: string, opts: Row[]) => (
@@ -93,8 +95,11 @@ function NuevoHallazgo({ cat, onClose }: { cat?: Row; onClose: () => void }) {
         <Field label="Prioridad">
           <select className="inp" value={f.prioridad} onChange={(e) => setF({ ...f, prioridad: e.target.value })}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select>
         </Field>
+        <Field label="Fecha del hallazgo">
+          <input className="inp" type="date" max={today()} value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} />
+        </Field>
       </div>
-      <PhotoField value={foto} onChange={setFoto} />
+      <PhotoField label="Foto (obligatoria)" value={foto} onChange={setFoto} />
     </Modal>
   )
 }
@@ -107,7 +112,8 @@ export function HallazgoDetalle() {
   const [motivo, setMotivo] = useState('')
   const h = q.data
   const abierto = h && (h.estado === 'registrado' || h.estado === 'en_atencion')
-  const directo = h && (h.area_responsable === 'SST' || h.area_responsable === 'Calidad')
+  // Mantenimiento y Administración atienden con tareas; las demás áreas se cierran directamente.
+  const directo = h && !['Mantenimiento', 'Administración'].includes(h.area_responsable)
   return (
     <Page back="/hallazgos" title={h ? `${h.codigo} · ${h.descripcion}` : 'Hallazgo'} actions={h && <><Chip s={h.nivel_riesgo} /><Chip s={h.estado} /></>}>
       <Loading q={q} />
@@ -123,7 +129,7 @@ export function HallazgoDetalle() {
                 <div><dt className="text-xs text-slate-500">Área responsable</dt><dd>{h.area_responsable}</dd></div>
                 <div><dt className="text-xs text-slate-500">Prioridad</dt><dd><Chip s={h.prioridad} /></dd></div>
                 <div><dt className="text-xs text-slate-500">Responsable SST</dt><dd>{h.responsable}</dd></div>
-                <div><dt className="text-xs text-slate-500">Fecha</dt><dd>{fmtD(h.created_at)}</dd></div>
+                <div><dt className="text-xs text-slate-500">Fecha del hallazgo</dt><dd>{fmtD(h.fecha)}</dd></div>
               </dl>
               <div className="flex flex-wrap gap-2">{(h.fotos ?? []).map((f: Row) => <Img key={f.id} id={f.id} className="h-32 w-44" />)}</div>
               {abierto && (
@@ -143,7 +149,7 @@ export function HallazgoDetalle() {
                     <tr key={t.id}><td><Link className="text-blue-700" to={`/tareas/${t.id}`}>{t.codigo}</Link></td><td>{t.titulo}<div className="text-xs text-slate-500">{t.responsable} · vence {fmtD(t.fecha_limite)}</div></td><td>{t.pasos_hechos}/{t.pasos_total}</td><td><Chip s={t.estado} /></td></tr>
                   ))}
                 </tbody></table>
-              ) : <p className="muted">{directo ? 'SST o Calidad pueden cerrar este hallazgo directamente.' : 'Aún no hay tareas.'}</p>}
+              ) : <p className="muted">{directo ? `El área ${h.area_responsable} no recibe tareas en la plataforma: SST cierra este hallazgo directamente.` : 'Aún no hay tareas.'}</p>}
             </div>
           </div>
           <div className="card"><h2 className="mb-2 font-semibold">Historial</h2><Historial items={h.historial} /></div>

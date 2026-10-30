@@ -46,7 +46,7 @@ Los trabajadores NO registran hallazgos ni observaciones. Solo SST registra hall
 
 5\. \*\*Entregar un EPP descuenta stock\*\* en la misma transacción. Si el stock queda en o bajo el mínimo, se notifica a SST.
 
-6\. \*\*Cada hallazgo tiene un área responsable de solucionarlo\*\* (Mantenimiento, Administración, SST, Calidad). Mantenimiento y Administración lo resuelven mediante tareas. SST y Calidad pueden cerrarlo directamente.
+6\. \*\*Cada hallazgo tiene un área responsable de solucionarlo\*\* (SST, Administración, Comercial, Mantenimiento, Almacén, Transporte, Vigilancia). Mantenimiento y Administración lo resuelven mediante tareas. Las demás áreas no tienen rol en la plataforma: SST cierra el hallazgo directamente.
 
 7\. \*\*Un hallazgo con tareas solo se cierra\*\* cuando todas sus tareas están `cerrada`.
 
@@ -72,7 +72,7 @@ Implementarlas en la capa de servicio, con pruebas unitarias para cada transici�
 
 \*\*Hallazgo\*\*
 
-\- `registrado` → `en\_atencion` (al crear su primera tarea) | `descartado` (requiere motivo; sin tareas activas) | `cerrado` (solo si el área responsable es SST o Calidad)
+\- `registrado` → `en\_atencion` (al crear su primera tarea) | `descartado` (requiere motivo; sin tareas activas) | `cerrado` (solo si el área responsable no es Mantenimiento ni Administración)
 
 \- `en\_atencion` → `cerrado` (todas sus tareas cerradas) | `descartado` (sin tareas activas)
 
@@ -228,7 +228,7 @@ make test         # go test ./... y npm test
 - **Sin sqlc por ahora.** `sqlc` necesita CGO en Windows. Las consultas viven en `internal/service` y usan pgx directo; las lecturas devuelven JSON generado por Postgres (`json_agg` / `row_to_json`). `internal/db` y `queries/` no se usan todavía.
 - **Servicio en un solo paquete** `internal/service` (un archivo por dominio), en lugar de una carpeta por dominio.
 - **Migraciones, reset y demo** se ejecutan con el mismo binario: `api migrate`, `api reset --si` y `api demo --si`. Los catálogos base viven en la migración 0003; `reset` y `demo` borran todo y los recargan desde ese archivo. `demo` se niega a correr con `APP_ENV=production`.
-- **Puertos:** API en `:8081` (el `:8080` estaba ocupado en la máquina de desarrollo), Postgres en `:5433`.
+- **Puertos:** API en `:8081` (el `:8080` estaba ocupado en la máquina de desarrollo), Postgres en `:5434` (el `:5433` lo usa otro proyecto).
 - **Frontend simple:** React 19, Tailwind 4, sin React Hook Form/Zod ni Recharts (formularios controlados y barras en CSS). Se pueden incorporar después.
 - **Rol `admin`** (migración 0002): gestiona cuentas y puestos de los otros cuatro roles (`/api/admin/*`). Las cuentas admin solo se definen en `.env` (`ACCOUNTS_ADMIN`); el admin no puede crear otros admin ni liberar su propio puesto.
 - **Cuentas iniciales en `.env`** (`ACCOUNTS_<ROL>`, formato `DNI|contraseña|Nombres|Puesto|Área|Correo|Celular`). `EnsureAccounts` las crea al iniciar la API y tras `reset`/`demo` si el DNI no existe; nunca modifica cuentas existentes.
@@ -236,4 +236,12 @@ make test         # go test ./... y npm test
 - **Uso real:** con `APP_ENV=production` la API no inicia si `JWT_SECRET` es débil o falta un admin con contraseña de 10+ caracteres. Login con bloqueo temporal (5 intentos fallidos por DNI, 30 por IP, 15 min). Cookie `Secure` con `COOKIE_SECURE=true`. Contraseñas de 8+ caracteres. La API sirve el frontend compilado desde `STATIC_DIR`.
 - **Puestos y personas sin puesto (admin):** `POST /api/admin/puestos` crea un puesto vacante o con una persona sin puesto. `DELETE /api/admin/usuarios/{id}` elimina a una persona sin puesto: se borra si no tiene historial y, si lo tiene, pasa a `estado='eliminado'` (migración 0004). Una persona eliminada no puede ingresar, y si se registra o se le crea cuenta con el mismo DNI se reutiliza su registro.
 - **Contraseña asignada** (migración 0005, `usuarios.password_asignada`): la contraseña que el admin entrega al crear o restablecer una cuenta se guarda además cifrada con AES-GCM, usando una clave derivada de `JWT_SECRET`. El admin la ve en `GET /api/admin/usuarios/{id}/password` y cada consulta queda en `historial`. Se borra cuando la persona cambia su contraseña. Las contraseñas que elige la persona solo se guardan con bcrypt. Si cambia `JWT_SECRET`, las asignadas dejan de poder verse.
+- **Catálogos de la empresa** (migración 0006, idempotente; `reset` la ejecuta después de 0003):
+  - Áreas: SST, Administración, Comercial, Mantenimiento, Almacén, Transporte y Vigilancia. Dirección queda oculta, solo para el admin.
+  - Ubicaciones: las 4 sedes.
+  - 6 tipos de hallazgo y los 10 EPP solicitables.
+  - Lo anterior se oculta (`areas.activa`, `tipos_hallazgo.activo`) o se borra si nada lo usa.
+- **Hallazgo:** `fecha` del hallazgo (no futura) y foto obligatoria.
+- **EPP con talla:** `recursos.tallas` (`letras`, `calzado` o NULL = talla única) y `solicitudes_epp.talla`. Reemplaza a la descripción, que queda opcional.
+- **Notificaciones del trabajador:** solo de sus EPP. La biblioteca ya no avisa.
 - Pendiente: pruebas de integración de permisos en Go, Playwright y Dockerfiles de producción (fase 8).

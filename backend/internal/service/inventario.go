@@ -18,20 +18,27 @@ func (s *Svc) Recursos(ctx context.Context, categoria string) (json.RawMessage, 
 }
 
 type RecursoIn struct {
-	CategoriaID int    `json:"categoria_id"`
-	Nombre      string `json:"nombre"`
-	Stock       int    `json:"stock"`
-	StockMinimo int    `json:"stock_minimo"`
+	CategoriaID int     `json:"categoria_id"`
+	Nombre      string  `json:"nombre"`
+	Stock       int     `json:"stock"`
+	StockMinimo int     `json:"stock_minimo"`
+	Tallas      *string `json:"tallas"` // 'letras', 'calzado' o null (talla única)
 }
 
 func (s *Svc) RecursoCrear(ctx context.Context, a *Actor, in RecursoIn) (int, error) {
 	if strings.TrimSpace(in.Nombre) == "" || in.CategoriaID == 0 || in.Stock < 0 || in.StockMinimo < 0 {
 		return 0, Bad("datos_incompletos", "Completa nombre, categoría, stock y mínimo.")
 	}
+	if in.Tallas != nil && *in.Tallas == "" {
+		in.Tallas = nil
+	}
+	if in.Tallas != nil && Tallas[*in.Tallas] == nil {
+		return 0, Bad("tallas_invalidas", "Tipo de talla no válido.")
+	}
 	var id int
 	err := s.Tx(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO recursos (categoria_id, nombre, stock, stock_minimo) VALUES ($1,$2,$3,$4) RETURNING id`,
-			in.CategoriaID, in.Nombre, in.Stock, in.StockMinimo).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO recursos (categoria_id, nombre, stock, stock_minimo, tallas) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+			in.CategoriaID, in.Nombre, in.Stock, in.StockMinimo, in.Tallas).Scan(&id); err != nil {
 			return err
 		}
 		return Hist(ctx, tx, a, "recurso", id, "Registró el recurso")

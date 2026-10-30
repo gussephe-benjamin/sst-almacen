@@ -4,24 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
+// SeResuelveConTareas indica si el área responsable atiende el hallazgo mediante tareas.
+// Las demás áreas no tienen un rol en la plataforma: SST cierra el hallazgo directamente.
+func SeResuelveConTareas(areaResp string) bool {
+	return areaResp == "Mantenimiento" || areaResp == "Administración"
+}
+
 // PuedeCerrarHallazgo aplica la regla de cierre: un hallazgo con tareas solo se cierra
-// cuando todas están cerradas; sin tareas, solo si el área responsable es SST o Calidad.
+// cuando todas están cerradas; sin tareas, solo si su área no se resuelve con tareas.
 func PuedeCerrarHallazgo(estado, areaResp string, tareas, cerradas int) bool {
 	if !PuedeHallazgo(estado, "cerrado") {
 		return false
 	}
 	if tareas == 0 {
-		return estado == "registrado" && (areaResp == "SST" || areaResp == "Calidad")
+		return estado == "registrado" && !SeResuelveConTareas(areaResp)
 	}
 	return tareas == cerradas
 }
 
 const hallazgoSQL = `SELECT h.id, 'H-' || lpad(h.id::text, 3, '0') AS codigo, h.descripcion, h.detalle, h.estado,
-	h.nivel_riesgo, h.prioridad, h.motivo_descarte, h.cerrado_at, h.created_at,
+	h.nivel_riesgo, h.prioridad, h.motivo_descarte, h.cerrado_at, h.created_at, h.fecha,
 	t.id AS tipo_id, t.nombre AS tipo, ub.id AS ubicacion_id, ub.nombre AS ubicacion,
 	ar.id AS area_responsable_id, ar.nombre AS area_responsable, u.nombres AS responsable,
 	(SELECT count(*) FROM tareas x WHERE x.hallazgo_id = h.id) AS tareas,
@@ -37,7 +44,7 @@ type HallazgoFiltro struct {
 const hallazgoWhere = ` WHERE ($1 = '' OR h.estado::text = $1) AND ($2 = '' OR h.nivel_riesgo::text = $2)
 	AND ($3 = 0 OR h.ubicacion_id = $3) AND ($4 = 0 OR h.area_responsable_id = $4)
 	AND ($5 = '' OR h.descripcion ILIKE '%' || $5 || '%' OR h.detalle ILIKE '%' || $5 || '%')
-	ORDER BY h.created_at DESC`
+	ORDER BY h.fecha DESC, h.created_at DESC`
 
 func (f HallazgoFiltro) args() []any {
 	return []any{f.Estado, f.Riesgo, f.Ubicacion, f.Responsable, f.Q}
@@ -66,6 +73,7 @@ type HallazgoIn struct {
 	AreaResponsableID int      `json:"area_responsable_id"`
 	NivelRiesgo       string   `json:"nivel_riesgo"`
 	Prioridad         string   `json:"prioridad"`
+	Fecha             string   `json:"fecha"`
 	Fotos             []string `json:"fotos"`
 }
 
@@ -73,16 +81,33 @@ func (s *Svc) HallazgoCrear(ctx context.Context, a *Actor, in HallazgoIn) (int, 
 	if strings.TrimSpace(in.Descripcion) == "" || in.TipoID == 0 || in.UbicacionID == 0 || in.AreaResponsableID == 0 || in.NivelRiesgo == "" || in.Prioridad == "" {
 		return 0, Bad("datos_incompletos", "Completa la descripción, tipo, ubicación, área responsable, riesgo y prioridad.")
 	}
+	if _, err := time.Parse("2006-01-02", in.Fecha); err != nil {
+		return 0, Bad("fecha_requerida", "Indica la fecha del hallazgo.")
+	}
+	if in.Fecha > time.Now().Format("2006-01-02") {
+		return 0, Bad("fecha_futura", "La fecha del hallazgo no puede ser futura.")
+	}
+	if len(in.Fotos) == 0 {
+		return 0, Bad("foto_requerida", "Adjunta al menos una foto del hallazgo.")
+	}
 	var id int
 	err := s.Tx(ctx, func(tx pgx.Tx) error {
 		var ok bool
-		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM areas WHERE id=$1 AND puede_resolver_hallazgos)`, in.AreaResponsableID).Scan(&ok)
+		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM areas WHERE id=$1 AND activa AND puede_resolver_hallazgos)`, in.AreaResponsableID).Scan(&ok)
 		if !ok {
-			return Bad("area_invalida", "El área responsable debe ser Mantenimiento, Administración, SST o Calidad.")
+			return Bad("area_invalida", "Elige un área responsable de la lista.")
 		}
-		if err := tx.QueryRow(ctx, `INSERT INTO hallazgos (descripcion, detalle, tipo_id, ubicacion_id, area_responsable_id, nivel_riesgo, prioridad, responsable_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, in.Descripcion, in.Detalle, in.TipoID, in.UbicacionID, in.AreaResponsableID,
-			in.NivelRiesgo, in.Prioridad, a.UserID).Scan(&id); err != nil {
+		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM areas WHERE id=$1 AND activa AND es_ubicacion)`, in.UbicacionID).Scan(&ok)
+		if !ok {
+			return Bad("ubicacion_invalida", "Elige una ubicación de la lista.")
+		}
+		tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM tipos_hallazgo WHERE id=$1 AND activo)`, in.TipoID).Scan(&ok)
+		if !ok {
+			return Bad("tipo_invalido", "Elige un tipo de hallazgo de la lista.")
+		}
+		if err := tx.QueryRow(ctx, `INSERT INTO hallazgos (descripcion, detalle, tipo_id, ubicacion_id, area_responsable_id, nivel_riesgo, prioridad, responsable_id, fecha)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, in.Descripcion, in.Detalle, in.TipoID, in.UbicacionID, in.AreaResponsableID,
+			in.NivelRiesgo, in.Prioridad, a.UserID, in.Fecha).Scan(&id); err != nil {
 			return err
 		}
 		for _, f := range in.Fotos {
