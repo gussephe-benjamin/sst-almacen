@@ -21,6 +21,7 @@ type API struct {
 	Secret       string
 	CookieSecure bool
 	StaticDir    string
+	TrustProxy   bool
 	limiter      *loginLimiter
 }
 
@@ -432,7 +433,7 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	keys := []string{"dni:" + in.DNI, "ip:" + clientIP(r)}
+	keys := []string{"dni:" + in.DNI, "ip:" + clientIP(r, a.TrustProxy)}
 	if a.limiter.blocked(keys...) {
 		writeErr(w, service.Err(http.StatusTooManyRequests, "demasiados_intentos", "Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo."))
 		return

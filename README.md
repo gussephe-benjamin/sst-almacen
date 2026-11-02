@@ -3,6 +3,7 @@
 Plataforma de Seguridad y Salud en el Trabajo para un almacén: solicitudes de EPP con foto, inventario con alertas de stock, hallazgos de inspección, tareas a Mantenimiento y Administración con evidencia por paso, biblioteca, notificaciones y dashboard.
 
 Guía de uso por rol: [USO.md](USO.md).
+Despliegue en la nube (Railway): [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ## Requisitos
 

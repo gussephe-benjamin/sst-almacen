@@ -244,4 +244,5 @@ make test         # go test ./... y npm test
 - **Hallazgo:** `fecha` del hallazgo (no futura) y foto obligatoria.
 - **EPP con talla:** `recursos.tallas` (`letras`, `calzado` o NULL = talla única) y `solicitudes_epp.talla`. Reemplaza a la descripción, que queda opcional.
 - **Notificaciones del trabajador:** solo de sus EPP. La biblioteca ya no avisa.
+- **Despliegue:** se hace en Railway con `Dockerfile` y `railway.json` (ver `DESPLIEGUE.md`). La API aplica las migraciones al iniciar y acepta URLs `postgresql://`. Con `TRUST_PROXY=true`, el límite por IP usa la última IP de `X-Forwarded-For`.
 - Pendiente: pruebas de integración de permisos en Go, Playwright y Dockerfiles de producción (fase 8).

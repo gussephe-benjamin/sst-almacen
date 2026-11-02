@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -48,16 +49,14 @@ func main() {
 		log.Fatal("no se cargan datos de demostración con APP_ENV=production")
 	}
 
-	if cmd == "migrate" {
-		src, _ := iofs.New(migrations.FS, ".")
-		m, err := migrate.NewWithSourceInstance("iofs", src, "pgx5"+cfg.DatabaseURL[len("postgres"):])
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	// La API aplica las migraciones pendientes al iniciar (en la nube no hay un paso aparte).
+	if cmd == "migrate" || cmd == "serve" {
+		if err := migrar(cfg.DatabaseURL); err != nil {
 			log.Fatal(err)
 		}
 		log.Println("migraciones aplicadas")
+	}
+	if cmd == "migrate" {
 		return
 	}
 
@@ -95,8 +94,29 @@ func main() {
 		}
 	}
 	svc.EnsureAccounts(ctx, cfg.Accounts)
-	api := &httpapi.API{S: svc, Files: files, Secret: cfg.JWTSecret, CookieSecure: cfg.CookieSecure, StaticDir: cfg.StaticDir}
+	api := &httpapi.API{S: svc, Files: files, Secret: cfg.JWTSecret, CookieSecure: cfg.CookieSecure, StaticDir: cfg.StaticDir, TrustProxy: cfg.TrustProxy}
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: api.Router(), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, WriteTimeout: 60 * time.Second}
 	log.Printf("API en :%s (%s)", cfg.Port, cfg.AppEnv)
 	log.Fatal(srv.ListenAndServe())
+}
+
+// migrar aplica las migraciones embebidas. Acepta URLs postgres:// y postgresql:// (Railway).
+func migrar(dbURL string) error {
+	_, rest, ok := strings.Cut(dbURL, "://")
+	if !ok {
+		return errors.New("DATABASE_URL no válida")
+	}
+	src, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		return err
+	}
+	m, err := migrate.NewWithSourceInstance("iofs", src, "pgx5://"+rest)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return err
+	}
+	return nil
 }

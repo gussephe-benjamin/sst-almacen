@@ -1,0 +1,10 @@
+.git
+.env
+**/node_modules
+**/dist
+bin
+data
+backend/data
+docs
+*.exe
+*.html

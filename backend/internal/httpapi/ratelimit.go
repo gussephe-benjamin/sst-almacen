@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,7 +29,13 @@ func limitFor(key string) int {
 
 func newLoginLimiter() *loginLimiter { return &loginLimiter{fails: map[string][]time.Time{}} }
 
-func clientIP(r *http.Request) string {
+// clientIP devuelve la IP del cliente. Detrás de un proxy de confianza se usa la última IP de
+// X-Forwarded-For: la agrega el proxy y el cliente no la puede falsificar.
+func clientIP(r *http.Request, trustProxy bool) string {
+	if xff := r.Header.Get("X-Forwarded-For"); trustProxy && xff != "" {
+		parts := strings.Split(xff, ",")
+		return strings.TrimSpace(parts[len(parts)-1])
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

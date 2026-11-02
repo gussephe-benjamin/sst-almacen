@@ -16,6 +16,8 @@ type Config struct {
 	CookieSecure bool
 	// StaticDir: carpeta con el frontend compilado (frontend/dist). Si existe, la API también sirve la app.
 	StaticDir string
+	// TrustProxy: la API está detrás de un proxy (Railway) que agrega la IP real en X-Forwarded-For.
+	TrustProxy bool
 	// Cuentas iniciales por rol, leídas de ACCOUNTS_<ROL>.
 	Accounts map[string][]Account
 }
@@ -107,6 +109,7 @@ func Load() Config {
 		AppEnv:       get("APP_ENV", "development"),
 		CookieSecure: get("COOKIE_SECURE", "false") == "true",
 		StaticDir:    get("STATIC_DIR", "../frontend/dist"),
+		TrustProxy:   get("TRUST_PROXY", "false") == "true",
 		Accounts:     map[string][]Account{},
 	}
 	for _, r := range Roles {
