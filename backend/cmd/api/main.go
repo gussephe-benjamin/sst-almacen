@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -51,6 +52,9 @@ func main() {
 
 	// La API aplica las migraciones pendientes al iniciar (en la nube no hay un paso aparte).
 	if cmd == "migrate" || cmd == "serve" {
+		if err := esperarBase(ctx, cfg.DatabaseURL, 90*time.Second); err != nil {
+			log.Fatal(err)
+		}
 		if err := migrar(cfg.DatabaseURL); err != nil {
 			log.Fatal(err)
 		}
@@ -119,4 +123,27 @@ func migrar(dbURL string) error {
 		return err
 	}
 	return nil
+}
+
+// esperarBase reintenta la conexión mientras la base o la red privada aún no están listas
+// (en Railway, el nombre *.railway.internal puede tardar unos segundos en resolverse).
+func esperarBase(ctx context.Context, dbURL string, max time.Duration) error {
+	limite := time.Now().Add(max)
+	for intento := 1; ; intento++ {
+		c, cancel := context.WithTimeout(ctx, 5*time.Second)
+		conn, err := pgx.Connect(c, dbURL)
+		if err == nil {
+			err = conn.Ping(c)
+			conn.Close(c)
+		}
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(limite) {
+			return fmt.Errorf("no se pudo conectar a la base de datos después de %s: %w", max, err)
+		}
+		log.Printf("esperando la base de datos (intento %d): %v", intento, err)
+		time.Sleep(3 * time.Second)
+	}
 }
