@@ -5,10 +5,12 @@ import { Btn, Banner, Chip, Field, Historial, Img, Loading, Modal, Page, PhotoFi
 
 const MOTIVOS = ['Desgaste por uso', 'Rotura o daño', 'Pérdida', 'Talla incorrecta', 'Otro']
 
-// Mismas tallas que el servidor (service.Tallas). Sin tipo de talla, el EPP es de talla única.
+// Mismas variantes que el servidor (service.Tallas): tallas de EPP o tipos de extintor.
+// Sin tipo de variante, el recurso es de talla única.
 export const TALLAS: Record<string, string[]> = {
   letras: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
   calzado: ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+  extintor: ['PQS', 'CO2', 'Agua presurizada'],
 }
 
 export function SolicitarEpp() {
@@ -120,7 +122,7 @@ export function EppDetalle({ me }: { me: Me }) {
               <dt className="text-slate-500">Talla</dt><dd>{e.talla ?? 'Única'}</dd>
               {e.descripcion && <><dt className="text-slate-500">Descripción</dt><dd>{e.descripcion}</dd></>}
               <dt className="text-slate-500">Fecha</dt><dd>{fmtDT(e.created_at)}</dd>
-              {sst && <><dt className="text-slate-500">Stock</dt><dd>{e.stock}</dd></>}
+              {sst && <><dt className="text-slate-500">Stock</dt><dd>{e.talla ? `${e.stock_talla ?? 0} de talla ${e.talla} (${e.stock} en total)` : e.stock}</dd></>}
             </dl>
             <Img id={e.foto_id} className="h-48 w-full" />
             {sst && (

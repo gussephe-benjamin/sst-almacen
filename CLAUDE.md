@@ -26,6 +26,8 @@ La referencia visual y funcional es el prototipo navegable en `docs/mvp-referenc
 
 | `administracion` | Área de apoyo | Igual que mantenimiento |
 
+| `calidad` | Área de apoyo | Igual que mantenimiento (migración 0007) |
+
 
 
 Los trabajadores NO registran hallazgos ni observaciones. Solo SST registra hallazgos.
@@ -243,6 +245,13 @@ make test         # go test ./... y npm test
   - Lo anterior se oculta (`areas.activa`, `tipos_hallazgo.activo`) o se borra si nada lo usa.
 - **Hallazgo:** `fecha` del hallazgo (no futura) y foto obligatoria.
 - **EPP con talla:** `recursos.tallas` (`letras`, `calzado` o NULL = talla única) y `solicitudes_epp.talla`. Reemplaza a la descripción, que queda opcional.
+- **Stock por variante** (migración 0008):
+  - `recursos.tallas` también acepta `extintor` (PQS, CO2, Agua presurizada).
+  - `recurso_variantes` guarda el stock de cada talla o tipo, y `recursos.stock` es su suma, que se mantiene en la misma transacción.
+  - Los movimientos, la aprobación y la entrega de EPP usan el stock de la talla.
+  - El stock que existía antes de las variantes quedó en la variante `''` ("Sin talla").
+- **Calidad:** el área volvió (0008). Calidad resuelve con tareas, igual que Mantenimiento y Administración.
+- **Fotos:** el `PhotoField` acepta pegar (Ctrl+V) y arrastrar, y comprime en el navegador a JPEG de 1920 px como máximo.
 - **Notificaciones del trabajador:** solo de sus EPP. La biblioteca ya no avisa.
 - **Despliegue:** se hace en Railway con `Dockerfile` y `railway.json` (ver `DESPLIEGUE.md`). La API aplica las migraciones al iniciar y acepta URLs `postgresql://`. Con `TRUST_PROXY=true`, el límite por IP usa la última IP de `X-Forwarded-For`.
 - Pendiente: pruebas de integración de permisos en Go, Playwright y Dockerfiles de producción (fase 8).

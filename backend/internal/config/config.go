@@ -28,7 +28,7 @@ type Account struct {
 	DNI, Password, Nombres, Puesto, Area, Correo, Celular string
 }
 
-var Roles = []string{"admin", "sst", "trabajador", "mantenimiento", "administracion"}
+var Roles = []string{"admin", "sst", "trabajador", "mantenimiento", "administracion", "calidad"}
 
 func get(k, def string) string {
 	if v := os.Getenv(k); v != "" {

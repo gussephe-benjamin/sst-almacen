@@ -21,7 +21,7 @@ func (s *Svc) Catalogos(ctx context.Context) (map[string]json.RawMessage, error)
 		"epp":        `SELECT r.id, r.nombre, r.tallas FROM recursos r JOIN categorias_recurso c ON c.id = r.categoria_id WHERE c.nombre = 'EPP' AND r.activo ORDER BY r.nombre`,
 		"puestos_apoyo": `SELECT p.id, p.nombre, p.rol, u.nombres AS persona FROM puestos p
 			LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id
-			WHERE p.rol IN ('mantenimiento','administracion') ORDER BY p.id`,
+			WHERE p.rol IN ('mantenimiento','administracion','calidad') ORDER BY p.id`,
 	}
 	for k, q := range qs {
 		v, err := List(ctx, s.DB, q)

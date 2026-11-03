@@ -28,10 +28,11 @@ export function Layout({ me }: { me: Me }) {
     ],
     mantenimiento: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
     administracion: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
+    calidad: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
     admin: [['/cuentas', 'Cuentas y puestos', UserCog, (cuentas.data?.sin_puesto ?? []).filter((u: Row) => u.estado === 'pendiente').length]],
   }
   const items: Item[] = [...menus[me.rol], ['/notificaciones', 'Notificaciones', Bell, unread]]
-  const rolLabel = { trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración', admin: 'Administrador' }[me.rol]
+  const rolLabel = { trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración', calidad: 'Calidad', admin: 'Administrador' }[me.rol]
 
   const logout = async () => {
     await api('/auth/logout', { body: {} }).catch(() => {})

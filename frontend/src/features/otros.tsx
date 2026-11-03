@@ -208,7 +208,7 @@ export function Puestos() {
   const [hist, setHist] = useState<Row | null>(null)
   const h = useApi<Row>(hist ? `/puestos/${hist.id}/historial` : null)
   const pendientes: Row[] = pend.data ?? []
-  const rolChip = (r: string) => <Chip>{{ trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración' }[r]}</Chip>
+  const rolChip = (r: string) => <Chip>{{ trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración', calidad: 'Calidad' }[r]}</Chip>
   return (
     <Page title="Puestos y usuarios" sub="Las cuentas pertenecen al puesto, no a la persona. Cuando cambia el personal, el reemplazo ingresa con su DNI a la misma cuenta y el historial del puesto se conserva.">
       {pendientes.length > 0 && (

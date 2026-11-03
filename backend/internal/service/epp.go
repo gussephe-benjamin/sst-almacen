@@ -12,7 +12,8 @@ import (
 
 const eppSQL = `SELECT e.id, 'E-' || lpad(e.id::text, 3, '0') AS codigo, e.estado, e.motivo, e.descripcion, e.talla, r.tallas,
 	e.foto_id, e.fecha_espera, e.motivo_rechazo, e.epp_anterior_devuelto, e.formato_firmado, e.entregada_at, e.created_at,
-	r.id AS recurso_id, r.nombre AS recurso, r.stock, p.id AS puesto_id, p.nombre AS puesto, u.nombres AS trabajador, u.dni
+	r.id AS recurso_id, r.nombre AS recurso, r.stock,
+	(SELECT v.stock FROM recurso_variantes v WHERE v.recurso_id = r.id AND v.variante = e.talla) AS stock_talla, p.id AS puesto_id, p.nombre AS puesto, u.nombres AS trabajador, u.dni
 	FROM solicitudes_epp e JOIN recursos r ON r.id = e.recurso_id JOIN puestos p ON p.id = e.puesto_id
 	JOIN usuarios u ON u.id = e.usuario_id`
 
@@ -24,10 +25,12 @@ type EppIn struct {
 	FotoID      string `json:"foto_id"`
 }
 
-// Tallas disponibles según el tipo de EPP; sin tipo, el EPP es de talla única.
+// Tallas (o tipos, en extintores) según el tipo de variante del recurso; sin tipo, es talla única.
+// Cada variante tiene su propio stock en recurso_variantes.
 var Tallas = map[string][]string{
-	"letras":  {"XS", "S", "M", "L", "XL", "XXL"},
-	"calzado": {"35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"},
+	"letras":   {"XS", "S", "M", "L", "XL", "XXL"},
+	"calzado":  {"35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"},
+	"extintor": {"PQS", "CO2", "Agua presurizada"},
 }
 
 // TallaValida comprueba la talla elegida para un EPP con tipo de talla (nil = talla única).
@@ -114,12 +117,19 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 	to := map[string]string{"aprobar": "aprobada", "espera": "en_espera", "rechazar": "rechazada", "entregar": "entregada"}[accion]
 	return s.Tx(ctx, func(tx pgx.Tx) error {
 		var estado, recurso string
+		var talla *string
 		var puestoID, recursoID, stock, minimo int
-		err := tx.QueryRow(ctx, `SELECT e.estado::text, e.puesto_id, r.id, r.nombre, r.stock, r.stock_minimo
+		err := tx.QueryRow(ctx, `SELECT e.estado::text, e.puesto_id, e.talla, r.id, r.nombre, r.stock, r.stock_minimo
 			FROM solicitudes_epp e JOIN recursos r ON r.id = e.recurso_id WHERE e.id = $1 FOR UPDATE OF e, r`, id).
-			Scan(&estado, &puestoID, &recursoID, &recurso, &stock, &minimo)
+			Scan(&estado, &puestoID, &talla, &recursoID, &recurso, &stock, &minimo)
 		if err != nil {
 			return notFound(err)
+		}
+		// Con talla, lo que cuenta es el stock de esa talla.
+		disponible := stock
+		if talla != nil {
+			disponible = 0
+			tx.QueryRow(ctx, `SELECT stock FROM recurso_variantes WHERE recurso_id=$1 AND variante=$2`, recursoID, *talla).Scan(&disponible)
 		}
 		if !PuedeEPP(estado, to) {
 			return errTrans()
@@ -128,8 +138,8 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 		var hist, aviso string
 		switch to {
 		case "aprobada":
-			if stock <= 0 {
-				return Conflict("stock_insuficiente", "No hay stock para aprobar esta solicitud.")
+			if disponible <= 0 {
+				return Conflict("stock_insuficiente", sinStock("aprobar", talla))
 			}
 			_, err = tx.Exec(ctx, `UPDATE solicitudes_epp SET estado='aprobada' WHERE id=$1`, id)
 			hist, aviso = "Aprobó la solicitud", fmt.Sprintf("Tu solicitud %s fue aprobada. Acércate a SST para la entrega.", code)
@@ -152,8 +162,8 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 			if !in.Devuelto || !in.Firmado {
 				return Bad("entrega_incompleta", "Confirma que el EPP anterior fue devuelto y que el formato fue firmado.")
 			}
-			if stock <= 0 {
-				return Conflict("stock_insuficiente", "No hay stock para entregar esta solicitud.")
+			if disponible <= 0 {
+				return Conflict("stock_insuficiente", sinStock("entregar", talla))
 			}
 			if _, err = tx.Exec(ctx, `UPDATE solicitudes_epp SET estado='entregada', epp_anterior_devuelto=true, formato_firmado=true, entregada_at=now() WHERE id=$1`, id); err != nil {
 				return err
@@ -161,8 +171,13 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 			if _, err = tx.Exec(ctx, `UPDATE recursos SET stock = stock - 1 WHERE id=$1`, recursoID); err != nil {
 				return err
 			}
-			if _, err = tx.Exec(ctx, `INSERT INTO movimientos_inventario (recurso_id, tipo, cantidad, nota, solicitud_epp_id, usuario_id, puesto_id)
-				VALUES ($1,'salida',1,$2,$3,$4,$5)`, recursoID, "Entrega de "+code, id, a.UserID, a.PuestoID); err != nil {
+			if talla != nil {
+				if _, err = tx.Exec(ctx, `UPDATE recurso_variantes SET stock = stock - 1 WHERE recurso_id=$1 AND variante=$2`, recursoID, *talla); err != nil {
+					return err
+				}
+			}
+			if _, err = tx.Exec(ctx, `INSERT INTO movimientos_inventario (recurso_id, tipo, cantidad, nota, solicitud_epp_id, usuario_id, puesto_id, variante)
+				VALUES ($1,'salida',1,$2,$3,$4,$5,$6)`, recursoID, "Entrega de "+code, id, a.UserID, a.PuestoID, talla); err != nil {
 				return err
 			}
 			if err = Hist(ctx, tx, a, "recurso", recursoID, "Salida de 1 por entrega de "+code); err != nil {
@@ -183,4 +198,11 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 		}
 		return Notify(ctx, tx, "trabajador", puestoID, aviso, "epp", id)
 	})
+}
+
+func sinStock(accion string, talla *string) string {
+	if talla != nil {
+		return fmt.Sprintf("No hay stock de la talla %s para %s esta solicitud.", *talla, accion)
+	}
+	return fmt.Sprintf("No hay stock para %s esta solicitud.", accion)
 }

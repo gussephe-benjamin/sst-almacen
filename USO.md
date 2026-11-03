@@ -15,7 +15,7 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
 |---|---|
 | **Administrador** | Crea y gestiona las cuentas y los puestos de todo el personal. |
 | **SST** | Dashboard, hallazgos, tareas a las áreas, solicitudes de EPP, inventario, tareas internas, biblioteca. |
-| **Mantenimiento / Administración** | Reciben tareas, las aceptan o piden cambios, y suben una foto y un comentario por cada paso. |
+| **Mantenimiento / Administración / Calidad** | Reciben tareas, las aceptan o piden cambios, y suben una foto y un comentario por cada paso. |
 | **Trabajador** | Pide cambio de EPP con foto, sigue sus solicitudes y consulta la biblioteca. |
 
 ## Ingreso
@@ -69,15 +69,18 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 ### Inventario
 - Pestañas por categoría y un aviso con los recursos en el mínimo o por debajo.
 - **Ingreso**, **Salida** y **Mínimo** por recurso, y **Nuevo recurso** para darlos de alta.
+- **Stock por talla o tipo:** los EPP con tallas (letras o calzado) y los extintores por tipo (PQS, CO2, Agua presurizada) llevan el stock de cada talla o tipo. Al crearlos se indica el stock inicial de cada uno (deja en 0 los que no tengas), y en *Ingreso* o *Salida* se elige la talla o el tipo. Debajo del nombre se ve el stock de cada una. El mínimo se compara con el total.
+- Aprobar o entregar una solicitud requiere stock **de la talla pedida**.
 - Si ingresa stock de un recurso con solicitudes en espera, llega un aviso para atenderlas.
 
 ### Hallazgos
 1. **Registrar hallazgo:** descripción, detalle, tipo, ubicación, **área responsable**, nivel de riesgo (la prioridad se propone sola), **fecha del hallazgo** y una **foto obligatoria**.
    - **Tipos:** condición insegura, acto inseguro, incidente / cuasiaccidente, incumplimiento documental, oportunidad de mejora y hallazgo positivo.
    - **Ubicaciones:** Sede Guardia Civil, Sede Guardia Peruana 1465, Sede Guardia Peruana 1479 y Laboratorio.
-   - **Áreas:** SST, Administración, Comercial, Mantenimiento, Almacén, Transporte y Vigilancia.
+   - **Áreas:** SST, Administración, Comercial, Mantenimiento, Almacén, Transporte, Vigilancia y Calidad.
 2. Según el área responsable:
    - **Mantenimiento o Administración:** se resuelve con **tareas**. *Crear tarea* pide el título, las indicaciones, el responsable, la fecha límite y los pasos. El hallazgo pasa a *En atención*.
+   - **Mantenimiento, Administración o Calidad:** se resuelve con tareas (ver arriba).
    - **SST, Comercial, Almacén, Transporte o Vigilancia:** estas áreas no reciben tareas en la plataforma, así que SST cierra el hallazgo directamente.
 3. **Cerrar hallazgo:** aparece cuando todas sus tareas están cerradas.
 4. **Descartar:** pide un motivo y solo es posible sin tareas activas.
@@ -92,10 +95,10 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 ### Tareas internas, Biblioteca y Puestos
 - **Tareas internas:** tablero *Pendientes / En curso / Completadas* para el trabajo propio de SST.
 - **Biblioteca:** *Publicar* un contenido con su imagen; los trabajadores la ven en la galería. También puedes editarlo o eliminarlo.
-- **Inventario de EPP:** al crear un EPP nuevo, elige qué tallas puede pedir el trabajador: talla única, por letras o de calzado.
+- **Inventario de EPP:** al crear un EPP nuevo, elige qué tallas puede pedir el trabajador (talla única, por letras o de calzado) y el stock de cada talla.
 - **Puestos y usuarios:** SST también puede asignar los registros pendientes a un puesto.
 
-## Mantenimiento y Administración
+## Mantenimiento, Administración y Calidad
 
 1. **Mis tareas:** tablero *Por hacer / En proceso / Terminadas*, con fecha límite y avance de pasos.
 2. En una tarea *Asignada*:
@@ -113,6 +116,7 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 
 ## Consejos
 
+- **Fotos:** desde la computadora también puedes **pegar una captura de pantalla** (Ctrl+V) o arrastrar una imagen al campo de foto. Las fotos se reducen automáticamente antes de subirse.
 - Las ventanas se cierran con **Escape** o tocando fuera de ellas.
 - Los botones se bloquean mientras procesan, para evitar envíos dobles.
 - Las acciones que no se pueden deshacer (cerrar, validar, liberar) piden confirmación.

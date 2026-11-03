@@ -37,7 +37,7 @@ func resetDB(ctx context.Context, tx pgx.Tx, files *storage.Store) error {
 	if _, err := tx.Exec(ctx, `TRUNCATE `+strings.Join(tables, ",")+` RESTART IDENTITY CASCADE`); err != nil {
 		return err
 	}
-	for _, f := range []string{"0003_catalogos.up.sql", "0006_catalogos_v2.up.sql"} {
+	for _, f := range []string{"0003_catalogos.up.sql", "0006_catalogos_v2.up.sql", "0008_calidad_variantes.up.sql"} {
 		catalogos, err := migrations.FS.ReadFile(f)
 		if err != nil {
 			return err
@@ -125,6 +125,9 @@ func seed(ctx context.Context, pool *pgxpool.Pool, files *storage.Store) error {
 		} {
 			ex(`UPDATE recursos SET stock=$2, stock_minimo=$3 WHERE nombre=$1`, r...)
 		}
+		// EPP con tallas: 2 por talla (las botas 42 sin stock, para la solicitud en espera) y el total es la suma.
+		ex(`UPDATE recurso_variantes SET stock = CASE WHEN variante = '42' THEN 0 ELSE 2 END`)
+		ex(`UPDATE recursos r SET stock = (SELECT sum(v.stock) FROM recurso_variantes v WHERE v.recurso_id = r.id) WHERE r.tallas IS NOT NULL`)
 		inv := [][]any{
 			{1, "Lentes de seguridad", 4, 6}, {1, "Arnés de seguridad", 3, 2},
 			{2, "Extintor PQS 6 kg", 8, 6}, {2, "Extintor CO2 5 kg", 2, 2},

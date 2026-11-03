@@ -7,7 +7,7 @@ export type Me = {
   nombre: string
   puesto_id: number
   puesto: string
-  rol: 'trabajador' | 'sst' | 'mantenimiento' | 'administracion' | 'admin'
+  rol: 'trabajador' | 'sst' | 'mantenimiento' | 'administracion' | 'calidad' | 'admin'
 }
 
 export class ApiError extends Error {

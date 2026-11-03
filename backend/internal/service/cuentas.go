@@ -16,16 +16,16 @@ import (
 
 // Área por defecto de cada rol cuando la cuenta del .env no indica una.
 var areaPorRol = map[string]string{
-	"admin": "Dirección", "sst": "SST", "trabajador": "Almacén", "mantenimiento": "Mantenimiento", "administracion": "Administración",
+	"admin": "Dirección", "sst": "SST", "trabajador": "Almacén", "mantenimiento": "Mantenimiento", "administracion": "Administración", "calidad": "Calidad",
 }
 
 var puestoPorRol = map[string]string{
 	"admin": "Administrador del sistema", "sst": "Especialista SST", "trabajador": "Operario de almacén",
-	"mantenimiento": "Técnico de mantenimiento", "administracion": "Asistente de administración",
+	"mantenimiento": "Técnico de mantenimiento", "administracion": "Asistente de administración", "calidad": "Inspector de calidad",
 }
 
 // Rol que el admin puede crear desde la interfaz. Las cuentas admin solo se definen en el .env.
-var rolesGestionables = map[string]bool{"trabajador": true, "sst": true, "mantenimiento": true, "administracion": true}
+var rolesGestionables = map[string]bool{"trabajador": true, "sst": true, "mantenimiento": true, "administracion": true, "calidad": true}
 
 func hashPw(pw string) string {
 	h, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
@@ -122,7 +122,7 @@ func (s *Svc) CrearCuenta(ctx context.Context, a *Actor, in CuentaIn) (int, erro
 	case len(in.Password) < 8:
 		return 0, Bad("password_corta", "La contraseña debe tener al menos 8 caracteres.")
 	case in.PuestoID == 0 && !rolesGestionables[in.Rol]:
-		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento o Administración.")
+		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento, Administración o Calidad.")
 	case in.PuestoID == 0 && (in.PuestoNombre == "" || in.AreaID == 0):
 		return 0, Bad("datos_incompletos", "Indica el nombre del puesto y su área.")
 	}
@@ -276,7 +276,7 @@ func (s *Svc) CrearPuesto(ctx context.Context, a *Actor, in PuestoIn) (int, erro
 	in.Nombre = strings.TrimSpace(in.Nombre)
 	switch {
 	case !rolesGestionables[in.Rol]:
-		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento o Administración.")
+		return 0, Bad("rol_invalido", "Elige el rol: Trabajador, SST, Mantenimiento, Administración o Calidad.")
 	case in.Nombre == "" || in.AreaID == 0:
 		return 0, Bad("datos_incompletos", "Indica el nombre del puesto y su área.")
 	}

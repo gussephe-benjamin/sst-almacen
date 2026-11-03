@@ -101,7 +101,7 @@ func (a *API) Router() http.Handler {
 			})
 
 			// Tareas (SST y áreas; la propiedad se valida en el servicio)
-			r.With(RequireRole("sst", "mantenimiento", "administracion")).Route("/tareas", func(r chi.Router) {
+			r.With(RequireRole("sst", "mantenimiento", "administracion", "calidad")).Route("/tareas", func(r chi.Router) {
 				r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 					v, err := a.S.Tareas(r.Context(), actor(r))
 					reply(w, v, err)

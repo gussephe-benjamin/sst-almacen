@@ -12,7 +12,7 @@ import (
 // SeResuelveConTareas indica si el área responsable atiende el hallazgo mediante tareas.
 // Las demás áreas no tienen un rol en la plataforma: SST cierra el hallazgo directamente.
 func SeResuelveConTareas(areaResp string) bool {
-	return areaResp == "Mantenimiento" || areaResp == "Administración"
+	return areaResp == "Mantenimiento" || areaResp == "Administración" || areaResp == "Calidad"
 }
 
 // PuedeCerrarHallazgo aplica la regla de cierre: un hallazgo con tareas solo se cierra

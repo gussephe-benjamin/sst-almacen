@@ -187,8 +187,53 @@ export function Img({ id, className = '' }: { id?: string | null; className?: st
 }
 
 /** Campo de foto: en el celular abre la cámara. Sube la imagen y devuelve su id. */
+/**
+ * Reduce la foto antes de subirla (lado mayor de 1920 px, JPEG): las fotos del celular y las capturas
+ * pasan de varios MB a unos cientos de KB. Si algo falla, se sube la original.
+ */
+async function comprimir(f: File): Promise<File> {
+  if (f.type === 'image/gif' || (f.size < 600 * 1024 && f.type === 'image/jpeg')) return f
+  try {
+    const img = await createImageBitmap(f)
+    const escala = Math.min(1, 1920 / Math.max(img.width, img.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.width * escala)
+    canvas.height = Math.round(img.height * escala)
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#fff' // las capturas PNG con transparencia quedan con fondo blanco
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/jpeg', 0.85))
+    return blob && blob.size < f.size ? new File([blob], 'foto.jpg', { type: 'image/jpeg' }) : f
+  } catch {
+    return f
+  }
+}
+
 export function PhotoField({ value, onChange, label = 'Foto' }: { value: string; onChange: (id: string) => void; label?: string }) {
   const [busy, setBusy] = useState(false)
+  const subir = async (original: File) => {
+    if (!original.type.startsWith('image/')) return toast('Solo se permiten imágenes.', true)
+    setBusy(true)
+    try {
+      const f = await comprimir(original)
+      if (f.size > 5 * 1024 * 1024) return toast('La imagen no debe superar 5 MB.', true)
+      onChange(await upload(f))
+    } catch (err) { toast((err as Error).message, true) } finally { setBusy(false) }
+  }
+  // Pegar una captura de pantalla (Ctrl+V) mientras el campo está vacío.
+  useEffect(() => {
+    if (value) return
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented) return // otro campo de foto ya la tomó
+      const f = [...(e.clipboardData?.files ?? [])].find((x) => x.type.startsWith('image/'))
+      if (!f) return
+      e.preventDefault()
+      subir(f)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  })
   return (
     <div>
       <span className="lbl">{label}</span>
@@ -198,17 +243,16 @@ export function PhotoField({ value, onChange, label = 'Foto' }: { value: string;
           <button type="button" className="btn btn-sm" onClick={() => onChange('')}>Cambiar</button>
         </div>
       ) : (
-        <label className="btn w-full cursor-pointer border-dashed py-6">
-          <Camera size={16} /> {busy ? 'Subiendo…' : 'Tomar o elegir foto'}
-          <input type="file" accept="image/*" capture="environment" className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0]
-              if (!f) return
-              if (f.size > 5 * 1024 * 1024) return toast('La imagen no debe superar 5 MB.', true)
-              setBusy(true)
-              try { onChange(await upload(f)) } catch (err) { toast((err as Error).message, true) } finally { setBusy(false) }
-            }} />
-        </label>
+        <>
+          <label className="btn w-full cursor-pointer border-dashed py-6"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) subir(f) }}>
+            <Camera size={16} /> {busy ? 'Subiendo…' : 'Tomar o elegir foto'}
+            <input type="file" accept="image/*" capture="environment" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subir(f) }} />
+          </label>
+          <p className="mt-1 hidden text-xs text-slate-500 sm:block">También puedes pegar una captura de pantalla (Ctrl+V) o arrastrar una imagen aquí.</p>
+        </>
       )}
     </div>
   )

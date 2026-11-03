@@ -12,7 +12,7 @@ import { HallazgoDetalle, Hallazgos } from './features/hallazgos'
 import { TareaDetalle, Tareas } from './features/tareas'
 import { Biblioteca, Dashboard, Internas, Notificaciones, Puestos } from './features/otros'
 
-export const HOME: Record<Me['rol'], string> = { trabajador: '/solicitar', sst: '/dashboard', mantenimiento: '/tareas', administracion: '/tareas', admin: '/cuentas' }
+export const HOME: Record<Me['rol'], string> = { trabajador: '/solicitar', sst: '/dashboard', mantenimiento: '/tareas', administracion: '/tareas', calidad: '/tareas', admin: '/cuentas' }
 
 /** Sin sesión válida devuelve null; un fallo de red se reintenta en lugar de cerrar la sesión. */
 async function loadMe(): Promise<Me | null> {
@@ -51,7 +51,7 @@ export default function App() {
   if (!me.data) return <><Login /><Toast /></>
   const m = me.data
   const sst = m.rol === 'sst'
-  const area = m.rol === 'mantenimiento' || m.rol === 'administracion'
+  const area = m.rol === 'mantenimiento' || m.rol === 'administracion' || m.rol === 'calidad'
   return (
     <Routes>
       <Route element={<Layout me={m} />}>

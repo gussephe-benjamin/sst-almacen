@@ -50,6 +50,7 @@ func TestPuedeCerrarHallazgo(t *testing.T) {
 	assert.True(t, PuedeCerrarHallazgo("registrado", "Vigilancia", 0, 0))
 	assert.False(t, PuedeCerrarHallazgo("registrado", "Mantenimiento", 0, 0))
 	assert.False(t, PuedeCerrarHallazgo("registrado", "Administración", 0, 0))
+	assert.False(t, PuedeCerrarHallazgo("registrado", "Calidad", 0, 0))
 	assert.True(t, PuedeCerrarHallazgo("en_atencion", "Mantenimiento", 2, 2))
 	assert.False(t, PuedeCerrarHallazgo("en_atencion", "Mantenimiento", 2, 1))
 	assert.False(t, PuedeCerrarHallazgo("cerrado", "SST", 0, 0))

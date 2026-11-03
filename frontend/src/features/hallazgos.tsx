@@ -112,8 +112,8 @@ export function HallazgoDetalle() {
   const [motivo, setMotivo] = useState('')
   const h = q.data
   const abierto = h && (h.estado === 'registrado' || h.estado === 'en_atencion')
-  // Mantenimiento y Administración atienden con tareas; las demás áreas se cierran directamente.
-  const directo = h && !['Mantenimiento', 'Administración'].includes(h.area_responsable)
+  // Mantenimiento, Administración y Calidad atienden con tareas; las demás áreas se cierran directamente.
+  const directo = h && !['Mantenimiento', 'Administración', 'Calidad'].includes(h.area_responsable)
   return (
     <Page back="/hallazgos" title={h ? `${h.codigo} · ${h.descripcion}` : 'Hallazgo'} actions={h && <><Chip s={h.nivel_riesgo} /><Chip s={h.estado} /></>}>
       <Loading q={q} />
@@ -169,7 +169,7 @@ export function HallazgoDetalle() {
 function NuevaTarea({ h, onClose }: { h: Row; onClose: () => void }) {
   const cat = useApi<Row>('/catalogos')
   const act = useAction()
-  const rol = h.area_responsable === 'Mantenimiento' ? 'mantenimiento' : 'administracion'
+  const rol = ({ Mantenimiento: 'mantenimiento', Administración: 'administracion', Calidad: 'calidad' } as Record<string, string>)[h.area_responsable]
   const puestos: Row[] = (cat.data?.puestos_apoyo ?? []).filter((p: Row) => p.rol === rol)
   const [f, setF] = useState({ titulo: '', indicaciones: '', puesto_id: 0, fecha_limite: today(7), pasos: [''] })
   const puesto = f.puesto_id || puestos[0]?.id || 0

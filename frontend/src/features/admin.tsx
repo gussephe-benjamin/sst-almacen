@@ -4,9 +4,9 @@ import { Copy, KeyRound, Plus, RefreshCw, Search, Trash2, UserRound } from 'luci
 import { api, type Me, type Row } from '../api/client'
 import { Banner, Btn, Chip, Field, Loading, Modal, Page, Tabs, confirmar, fmtD, fmtDT, toast, useAction, useApi } from '../components/ui'
 
-const ROLES: [string, string][] = [['trabajador', 'Trabajador'], ['sst', 'SST'], ['mantenimiento', 'Mantenimiento'], ['administracion', 'Administración']]
+const ROLES: [string, string][] = [['trabajador', 'Trabajador'], ['sst', 'SST'], ['mantenimiento', 'Mantenimiento'], ['administracion', 'Administración'], ['calidad', 'Calidad']]
 const ROL_LABEL: Record<string, string> = { ...Object.fromEntries(ROLES), admin: 'Administrador' }
-const ROL_CHIP: Record<string, string> = { trabajador: 'enviada', sst: 'aprobada', mantenimiento: 'en_espera', administracion: 'por_validar', admin: 'pendiente' }
+const ROL_CHIP: Record<string, string> = { trabajador: 'enviada', sst: 'aprobada', mantenimiento: 'en_espera', administracion: 'por_validar', calidad: 'en_atencion', admin: 'pendiente' }
 
 const genPassword = () => {
   const c = 'abcdefghjkmnpqrstuvwxyz23456789'

@@ -55,8 +55,8 @@ func (s *Svc) TareaCrear(ctx context.Context, a *Actor, hallazgoID int, in Tarea
 		if err := tx.QueryRow(ctx, `SELECT rol::text, area_id FROM puestos WHERE id=$1`, in.PuestoID).Scan(&rol, &areaID); err != nil {
 			return notFound(err)
 		}
-		if rol != "mantenimiento" && rol != "administracion" {
-			return Bad("puesto_invalido", "Las tareas se asignan a Mantenimiento o Administración.")
+		if rol != "mantenimiento" && rol != "administracion" && rol != "calidad" {
+			return Bad("puesto_invalido", "Las tareas se asignan a Mantenimiento, Administración o Calidad.")
 		}
 		if err := tx.QueryRow(ctx, `INSERT INTO tareas (hallazgo_id, titulo, indicaciones, area_id, puesto_id, creada_por, fecha_limite)
 			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, hallazgoID, in.Titulo, in.Indicaciones, areaID, in.PuestoID, a.UserID, fecha).Scan(&id); err != nil {
