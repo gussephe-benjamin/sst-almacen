@@ -38,15 +38,15 @@ Los trabajadores NO registran hallazgos ni observaciones. Solo SST registra hall
 
 
 
-1\. \*\*Las cuentas son del puesto, no de la persona.\*\* Un puesto tiene un rol. Una persona (identificada por DNI) se asigna a un puesto. Cuando cambia el personal, la nueva persona hereda el puesto y su historial. Los puestos no se eliminan.
+1\. \*\*Las cuentas son del puesto, no de la persona.\*\* Un puesto tiene un rol. Una persona (identificada por DNI) se asigna a un puesto. Cuando cambia el personal, la nueva persona hereda el puesto y su historial. Un puesto vacante se puede eliminar: si tiene historial solo se desactiva (`puestos.activo`).
 
-2\. \*\*Registro con DNI.\*\* Todo usuario se registra con DNI (8 dígitos), cualquier correo y celular propio. Queda en estado `pendiente` hasta que SST lo asigna a un puesto.
+2\. \*\*Registro con DNI.\*\* Todo usuario se registra con DNI (8 dígitos), cualquier correo y celular propio. Queda en estado `pendiente` hasta que el administrador lo asigna a un puesto. Solo el administrador recibe el aviso del registro; SST solo consulta los puestos.
 
 3\. \*\*Trazabilidad.\*\* Toda acción que cambia un estado escribe una fila en `historial` con fecha, usuario, puesto y acción, dentro de la misma transacción.
 
 4\. \*\*Privacidad.\*\* Un trabajador solo ve sus propias solicitudes. Un área de apoyo solo ve las tareas asignadas a su puesto (nunca inventario, hallazgos completos ni tareas internas de SST). Esto se valida en el backend, no solo en la UI.
 
-5\. \*\*Entregar un EPP descuenta stock\*\* en la misma transacción. Si el stock queda en o bajo el mínimo, se notifica a SST.
+5\. \*\*Entregar un EPP descuenta stock\*\* en la misma transacción. Si el stock (o el de la talla, si tiene mínimo) queda en o bajo el mínimo, se notifica a SST.
 
 6\. \*\*Cada hallazgo tiene un área responsable de solucionarlo\*\* (SST, Administración, Comercial, Mantenimiento, Almacén, Transporte, Vigilancia). Mantenimiento y Administración lo resuelven mediante tareas. Las demás áreas no tienen rol en la plataforma: SST cierra el hallazgo directamente.
 
@@ -249,7 +249,12 @@ make test         # go test ./... y npm test
   - `recursos.tallas` también acepta `extintor` (PQS, CO2, Agua presurizada).
   - `recurso_variantes` guarda el stock de cada talla o tipo, y `recursos.stock` es su suma, que se mantiene en la misma transacción.
   - Los movimientos, la aprobación y la entrega de EPP usan el stock de la talla.
-  - El stock que existía antes de las variantes quedó en la variante `''` ("Sin talla").
+  - Migración 0009: cada variante tiene su `stock_minimo` (0 = sin aviso) y se quitó la variante `''` ("Sin talla"); el total se recalculó como la suma de las tallas.
+  - Un recurso con variantes está bajo el mínimo si alguna talla o tipo con mínimo > 0 llegó a él (`bajoMinimoSQL`).
+  - `POST /recursos/{id}/movimientos` acepta `items: [{variante, cantidad}]` para mover varias tallas a la vez, todas o ninguna.
+  - Los extintores solo tienen los tipos que se marcaron al crearlos.
+- **Puestos (admin):** `PATCH /api/admin/puestos/{id}` corrige el nombre y el área (el rol no cambia). `DELETE /api/admin/puestos/{id}` elimina un puesto vacante.
+- **Tipo de hallazgo "Observación"** (0009). `reset` ejecuta 0009 después de 0008.
 - **Calidad:** el área volvió (0008). Calidad resuelve con tareas, igual que Mantenimiento y Administración.
 - **Fotos:** el `PhotoField` acepta pegar (Ctrl+V) y arrastrar, y comprime en el navegador a JPEG de 1920 px como máximo.
 - **Notificaciones del trabajador:** solo de sus EPP. La biblioteca ya no avisa.

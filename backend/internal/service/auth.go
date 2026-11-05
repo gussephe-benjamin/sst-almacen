@@ -53,11 +53,8 @@ func (s *Svc) Register(ctx context.Context, in RegisterIn) error {
 				return err
 			}
 		}
-		msg := in.Nombres + " se registró con DNI y espera asignación de puesto."
-		if err := Notify(ctx, tx, "sst", 0, msg, "puestos", 0); err != nil {
-			return err
-		}
-		return Notify(ctx, tx, "admin", 0, msg, "cuentas", 0)
+		// Solo el administrador asigna los registros nuevos a un puesto.
+		return Notify(ctx, tx, "admin", 0, in.Nombres+" se registró con DNI y espera asignación de puesto.", "cuentas", 0)
 	})
 }
 

@@ -181,6 +181,17 @@ func (a *API) Router() http.Handler {
 					id, err := a.S.CrearPuesto(r.Context(), actor(r), in)
 					reply(w, map[string]int{"id": id}, err)
 				})
+				r.Patch("/puestos/{id}", func(w http.ResponseWriter, r *http.Request) {
+					var in service.PuestoIn
+					if err := decode(r, &in); err != nil {
+						writeErr(w, err)
+						return
+					}
+					ok(w, a.S.EditarPuesto(r.Context(), actor(r), idParam(r, "id"), in))
+				})
+				r.Delete("/puestos/{id}", func(w http.ResponseWriter, r *http.Request) {
+					ok(w, a.S.EliminarPuesto(r.Context(), actor(r), idParam(r, "id")))
+				})
 				r.Delete("/usuarios/{id}", func(w http.ResponseWriter, r *http.Request) {
 					ok(w, a.S.EliminarUsuario(r.Context(), actor(r), idParam(r, "id")))
 				})
@@ -258,14 +269,12 @@ func (a *API) Router() http.Handler {
 					reply(w, map[string]int{"id": id}, err)
 				})
 				r.Patch("/recursos/{id}", func(w http.ResponseWriter, r *http.Request) {
-					var in struct {
-						StockMinimo int `json:"stock_minimo"`
-					}
+					var in service.MinimoIn
 					if err := decode(r, &in); err != nil {
 						writeErr(w, err)
 						return
 					}
-					ok(w, a.S.RecursoMinimo(r.Context(), actor(r), idParam(r, "id"), in.StockMinimo))
+					ok(w, a.S.RecursoMinimo(r.Context(), actor(r), idParam(r, "id"), in))
 				})
 				r.Post("/recursos/{id}/movimientos", func(w http.ResponseWriter, r *http.Request) {
 					var in service.MovIn
@@ -351,17 +360,6 @@ func (a *API) Router() http.Handler {
 				r.Get("/puestos", func(w http.ResponseWriter, r *http.Request) {
 					v, err := a.S.Puestos(r.Context(), false)
 					reply(w, v, err)
-				})
-				r.Get("/usuarios/pendientes", func(w http.ResponseWriter, r *http.Request) { v, err := a.S.Pendientes(r.Context()); reply(w, v, err) })
-				r.Post("/puestos/{id}/asignar", func(w http.ResponseWriter, r *http.Request) {
-					var in struct {
-						UsuarioID int `json:"usuario_id"`
-					}
-					if err := decode(r, &in); err != nil {
-						writeErr(w, err)
-						return
-					}
-					ok(w, a.S.Asignar(r.Context(), actor(r), idParam(r, "id"), in.UsuarioID))
 				})
 				r.Get("/puestos/{id}/historial", func(w http.ResponseWriter, r *http.Request) {
 					v, err := a.S.PuestoHistorial(r.Context(), idParam(r, "id"))

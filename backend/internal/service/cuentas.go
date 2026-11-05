@@ -74,7 +74,7 @@ func (s *Svc) ensureAccount(ctx context.Context, rol string, acc config.Account)
 		var puestoID int
 		var ocupado bool
 		err := tx.QueryRow(ctx, `SELECT p.id, EXISTS(SELECT 1 FROM asignaciones_puesto ap WHERE ap.puesto_id = p.id AND ap.hasta IS NULL)
-			FROM puestos p WHERE p.nombre=$1 AND p.rol=$2 ORDER BY p.id LIMIT 1`, puesto, rol).Scan(&puestoID, &ocupado)
+			FROM puestos p WHERE p.activo AND p.nombre=$1 AND p.rol=$2 ORDER BY p.id LIMIT 1`, puesto, rol).Scan(&puestoID, &ocupado)
 		if errors.Is(err, pgx.ErrNoRows) {
 			err = tx.QueryRow(ctx, `INSERT INTO puestos (nombre, rol, area_id) VALUES ($1,$2,$3) RETURNING id`, puesto, rol, areaID).Scan(&puestoID)
 		}
@@ -143,7 +143,7 @@ func (s *Svc) CrearCuenta(ctx context.Context, a *Actor, in CuentaIn) (int, erro
 			if err := Hist(ctx, tx, a, "puesto", puestoID, "Creó el puesto "+puesto); err != nil {
 				return err
 			}
-		} else if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
+		} else if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 AND activo FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
 			return notFound(err)
 		}
 		if !rolesGestionables[rol] {
@@ -339,4 +339,67 @@ func reactivar(ctx context.Context, tx pgx.Tx, dni, nombres, correo, celular, ha
 		return 0, false, nil
 	}
 	return id, err == nil, err
+}
+
+// EditarPuesto corrige el nombre y el área de un puesto. El rol no cambia: de él dependen sus tareas y permisos.
+func (s *Svc) EditarPuesto(ctx context.Context, a *Actor, id int, in PuestoIn) error {
+	in.Nombre = strings.TrimSpace(in.Nombre)
+	if in.Nombre == "" || in.AreaID == 0 {
+		return Bad("datos_incompletos", "Indica el nombre del puesto y su área.")
+	}
+	return s.Tx(ctx, func(tx pgx.Tx) error {
+		var antes, rol string
+		if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 AND activo FOR UPDATE`, id).Scan(&antes, &rol); err != nil {
+			return notFound(err)
+		}
+		if !rolesGestionables[rol] {
+			return ErrForbidden
+		}
+		if _, err := tx.Exec(ctx, `UPDATE puestos SET nombre=$2, area_id=$3 WHERE id=$1`, id, in.Nombre, in.AreaID); err != nil {
+			return err
+		}
+		msg := "Editó el puesto"
+		if antes != in.Nombre {
+			msg = fmt.Sprintf("Cambió el nombre del puesto de %s a %s", antes, in.Nombre)
+		}
+		return Hist(ctx, tx, a, "puesto", id, msg)
+	})
+}
+
+// EliminarPuesto quita un puesto vacante. Si nunca tuvo actividad se borra; si tiene
+// historial (personas anteriores, tareas, solicitudes) se desactiva para conservar la trazabilidad.
+func (s *Svc) EliminarPuesto(ctx context.Context, a *Actor, id int) error {
+	return s.Tx(ctx, func(tx pgx.Tx) error {
+		var nombre, rol string
+		var ocupado bool
+		if err := tx.QueryRow(ctx, `SELECT p.nombre, p.rol::text, EXISTS (SELECT 1 FROM asignaciones_puesto ap WHERE ap.puesto_id = p.id AND ap.hasta IS NULL)
+			FROM puestos p WHERE p.id=$1 AND p.activo FOR UPDATE`, id).Scan(&nombre, &rol, &ocupado); err != nil {
+			return notFound(err)
+		}
+		if !rolesGestionables[rol] {
+			return ErrForbidden
+		}
+		if ocupado {
+			return Conflict("puesto_ocupado", "Solo se pueden eliminar puestos vacantes. Libera el puesto primero.")
+		}
+		sp, err := tx.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := sp.Exec(ctx, `DELETE FROM puestos WHERE id=$1`, id); err != nil {
+			var pg *pgconn.PgError
+			if !errors.As(err, &pg) || pg.Code != "23503" {
+				return err
+			}
+			if err := sp.Rollback(ctx); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE puestos SET activo=false WHERE id=$1`, id); err != nil {
+				return err
+			}
+		} else if err := sp.Commit(ctx); err != nil {
+			return err
+		}
+		return Hist(ctx, tx, a, "puesto", id, "Eliminó el puesto "+nombre)
+	})
 }

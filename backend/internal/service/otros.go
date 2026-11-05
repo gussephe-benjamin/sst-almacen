@@ -21,7 +21,7 @@ func (s *Svc) Catalogos(ctx context.Context) (map[string]json.RawMessage, error)
 		"epp":        `SELECT r.id, r.nombre, r.tallas FROM recursos r JOIN categorias_recurso c ON c.id = r.categoria_id WHERE c.nombre = 'EPP' AND r.activo ORDER BY r.nombre`,
 		"puestos_apoyo": `SELECT p.id, p.nombre, p.rol, u.nombres AS persona FROM puestos p
 			LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id
-			WHERE p.rol IN ('mantenimiento','administracion','calidad') ORDER BY p.id`,
+			WHERE p.activo AND p.rol IN ('mantenimiento','administracion','calidad') ORDER BY p.id`,
 	}
 	for k, q := range qs {
 		v, err := List(ctx, s.DB, q)
@@ -156,7 +156,7 @@ func (s *Svc) Puestos(ctx context.Context, incluirAdmin bool) (json.RawMessage, 
 		(SELECT count(*) FROM asignaciones_puesto x WHERE x.puesto_id = p.id AND x.hasta IS NOT NULL) AS anteriores
 		FROM puestos p JOIN areas a ON a.id = p.area_id
 		LEFT JOIN asignaciones_puesto ap ON ap.puesto_id = p.id AND ap.hasta IS NULL LEFT JOIN usuarios u ON u.id = ap.usuario_id
-		WHERE $1 OR p.rol <> 'admin' ORDER BY p.rol, p.id`, incluirAdmin)
+		WHERE p.activo AND ($1 OR p.rol <> 'admin') ORDER BY p.rol, p.id`, incluirAdmin)
 }
 
 func (s *Svc) Pendientes(ctx context.Context) (json.RawMessage, error) {
@@ -171,7 +171,7 @@ func (s *Svc) Asignar(ctx context.Context, a *Actor, puestoID, usuarioID int) er
 
 func asignar(ctx context.Context, tx pgx.Tx, a *Actor, puestoID, usuarioID int) error {
 	var puesto, rol string
-	if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT nombre, rol::text FROM puestos WHERE id=$1 AND activo FOR UPDATE`, puestoID).Scan(&puesto, &rol); err != nil {
 		return notFound(err)
 	}
 	if !rolesGestionables[rol] {

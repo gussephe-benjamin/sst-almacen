@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ZoomIn } from 'lucide-react'
 import { fileUrl, type Me, type Row } from '../api/client'
-import { Btn, plural, Banner, Chip, Field, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
+import { Btn, plural, Chip, Field, Loading, Modal, Page, PhotoField, Tabs, fmtD, fmtDT, label, today, useAction, useApi } from '../components/ui'
 
 // ---------- Dashboard ----------
 
@@ -100,13 +100,13 @@ export function Biblioteca({ me }: { me: Me }) {
       <Tabs value={tab} onChange={setTab} tabs={[['', 'Todo'], ...(TIPOS as [string, string][])]} />
       <Loading q={q} />
       {q.data?.length === 0 && <p className="muted">{sst ? 'Aún no hay contenidos. Usa “Publicar” para compartir afiches y procedimientos.' : 'Aún no hay contenidos publicados.'}</p>}
-      {/* Galería: la imagen se ve de inmediato; al tocarla se abre el detalle con zoom. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {/* Mosaico: cada imagen conserva su proporción (vertical u horizontal) y se ve completa; al tocarla se abre el detalle con zoom. */}
+      <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
         {(q.data ?? []).map((b: Row) => (
           <button key={b.id} type="button" onClick={() => { setZoom(false); setVer(b) }}
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-sm transition hover:border-blue-300 hover:shadow">
+            className="mb-3 block w-full break-inside-avoid overflow-hidden rounded-lg border border-slate-200 bg-white text-left shadow-sm transition hover:border-blue-300 hover:shadow">
             {b.imagen_id
-              ? <img src={fileUrl(b.imagen_id)} alt={b.titulo} loading="lazy" className="aspect-[3/4] w-full bg-slate-100 object-cover" />
+              ? <img src={fileUrl(b.imagen_id)} alt={b.titulo} loading="lazy" className="h-auto w-full bg-slate-100" />
               : <div className="flex aspect-[3/4] w-full items-center justify-center bg-slate-100 p-3 text-center text-sm font-semibold text-slate-500">{b.titulo}</div>}
             <div className="p-2">
               <div className="text-[11px] uppercase text-slate-500">{b.tipo}{b.codigo && ` · ${b.codigo}`}</div>
@@ -202,31 +202,11 @@ export function Internas() {
 
 export function Puestos() {
   const q = useApi('/puestos')
-  const pend = useApi('/usuarios/pendientes')
-  const act = useAction()
-  const [asig, setAsig] = useState<{ puesto_id: number; usuario_id: number } | null>(null)
   const [hist, setHist] = useState<Row | null>(null)
   const h = useApi<Row>(hist ? `/puestos/${hist.id}/historial` : null)
-  const pendientes: Row[] = pend.data ?? []
   const rolChip = (r: string) => <Chip>{{ trabajador: 'Trabajador', sst: 'SST', mantenimiento: 'Mantenimiento', administracion: 'Administración', calidad: 'Calidad' }[r]}</Chip>
   return (
-    <Page title="Puestos y usuarios" sub="Las cuentas pertenecen al puesto, no a la persona. Cuando cambia el personal, el reemplazo ingresa con su DNI a la misma cuenta y el historial del puesto se conserva.">
-      {pendientes.length > 0 && (
-        <div className="card mb-4">
-          <h2 className="mb-2 font-semibold">Registros por asignar <Chip s="en_espera">{pendientes.length}</Chip></h2>
-          <table className="tbl"><tbody>
-            {pendientes.map((p) => (
-              <tr key={p.id}>
-                <td><b>{p.nombres}</b><div className="text-xs text-slate-500">DNI {p.dni}</div></td>
-                <td className="text-xs">{p.correo}<div className="text-slate-500">{p.celular}</div></td>
-                <td className="text-xs">{p.area ?? '—'}</td>
-                <td className="text-xs text-slate-500">Registrado {fmtDT(p.created_at)}</td>
-                <td className="text-right"><Btn className="btn btn-sm btn-primary" onClick={() => setAsig({ puesto_id: 0, usuario_id: p.id })}>Asignar a un puesto</Btn></td>
-              </tr>
-            ))}
-          </tbody></table>
-        </div>
-      )}
+    <Page title="Puestos y usuarios" sub="Las cuentas pertenecen al puesto, no a la persona. El administrador del sistema asigna a las personas y gestiona los puestos.">
       <Loading q={q} />
       <div className="card overflow-x-auto p-0">
         <table className="tbl">
@@ -239,7 +219,6 @@ export function Puestos() {
                 <td>{p.persona ?? <span className="text-slate-400">Vacante</span>}{p.dni && <div className="text-xs text-slate-500">DNI {p.dni}</div>}</td>
                 <td className="text-xs">{p.celular}</td><td className="text-xs">{fmtD(p.desde)}</td>
                 <td className="whitespace-nowrap text-right">
-                  <Btn className="btn btn-sm" onClick={() => setAsig({ puesto_id: p.id, usuario_id: pendientes[0]?.id ?? 0 })}>Cambiar personal</Btn>{' '}
                   <Btn className="btn btn-sm" onClick={() => setHist(p)}>Historial ({p.anteriores})</Btn>
                 </td>
               </tr>
@@ -247,25 +226,6 @@ export function Puestos() {
           </tbody>
         </table>
       </div>
-      {asig && (
-        <Modal title="Asignar persona a un puesto" onClose={() => setAsig(null)}
-          footer={<Btn className="btn btn-primary" onClick={async () => { if (await act(`/puestos/${asig.puesto_id}/asignar`, { usuario_id: asig.usuario_id }, 'Persona asignada al puesto.')) setAsig(null) }}>Asignar</Btn>}>
-          {pendientes.length === 0 ? <Banner kind="warn">No hay registros pendientes. La persona debe registrarse primero con su DNI.</Banner> : <>
-            <Field label="Persona">
-              <select className="inp" value={asig.usuario_id} onChange={(e) => setAsig({ ...asig, usuario_id: +e.target.value })}>
-                {pendientes.map((p) => <option key={p.id} value={p.id}>{p.nombres}, DNI {p.dni}</option>)}
-              </select>
-            </Field>
-            <Field label="Puesto">
-              <select className="inp" value={asig.puesto_id} onChange={(e) => setAsig({ ...asig, puesto_id: +e.target.value })}>
-                <option value={0}>Selecciona…</option>
-                {(q.data ?? []).map((p: Row) => <option key={p.id} value={p.id}>{p.nombre}{p.persona ? ` (hoy: ${p.persona})` : ''}</option>)}
-              </select>
-            </Field>
-            <p className="muted">Si el puesto está ocupado, la persona actual sale del puesto. La nueva hereda sus solicitudes, tareas y avisos.</p>
-          </>}
-        </Modal>
-      )}
       {hist && (
         <Modal title={`Historial: ${hist.nombre}`} onClose={() => setHist(null)}>
           <h3 className="font-semibold">Personas</h3>

@@ -125,11 +125,11 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 		if err != nil {
 			return notFound(err)
 		}
-		// Con talla, lo que cuenta es el stock de esa talla.
+		// Con talla, lo que cuenta es el stock y el mínimo de esa talla.
 		disponible := stock
 		if talla != nil {
-			disponible = 0
-			tx.QueryRow(ctx, `SELECT stock FROM recurso_variantes WHERE recurso_id=$1 AND variante=$2`, recursoID, *talla).Scan(&disponible)
+			disponible, minimo = 0, 0
+			tx.QueryRow(ctx, `SELECT stock, stock_minimo FROM recurso_variantes WHERE recurso_id=$1 AND variante=$2`, recursoID, *talla).Scan(&disponible, &minimo)
 		}
 		if !PuedeEPP(estado, to) {
 			return errTrans()
@@ -183,8 +183,13 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 			if err = Hist(ctx, tx, a, "recurso", recursoID, "Salida de 1 por entrega de "+code); err != nil {
 				return err
 			}
-			if stock-1 <= minimo {
-				if err = Notify(ctx, tx, "sst", 0, fmt.Sprintf("Stock bajo: %s (%d en stock, mínimo %d).", recurso, stock-1, minimo), "inventario", recursoID); err != nil {
+			// Aviso de stock bajo: sin talla, contra el mínimo del recurso; con talla, contra el de esa talla (si tiene).
+			if disponible-1 <= minimo && (talla == nil || minimo > 0) {
+				nombre := recurso
+				if talla != nil {
+					nombre += " " + *talla
+				}
+				if err = Notify(ctx, tx, "sst", 0, fmt.Sprintf("Stock bajo: %s (%d en stock, mínimo %d).", nombre, disponible-1, minimo), "inventario", recursoID); err != nil {
 					return err
 				}
 			}

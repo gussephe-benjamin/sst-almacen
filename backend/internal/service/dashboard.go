@@ -21,8 +21,8 @@ SELECT json_build_object(
   'epp_nuevas',        (SELECT count(*) FROM solicitudes_epp WHERE estado = 'enviada'),
   'tareas_por_validar',(SELECT count(*) FROM tareas WHERE estado = 'por_validar'),
   'modificaciones',    (SELECT count(*) FROM tareas WHERE estado = 'modificacion'),
-  'bajo_minimo',       (SELECT coalesce(json_agg(json_build_object('id', id, 'nombre', nombre, 'stock', stock, 'minimo', stock_minimo)), '[]')
-                         FROM recursos WHERE activo AND stock <= stock_minimo),
+  'bajo_minimo',       (SELECT coalesce(json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'stock', r.stock, 'minimo', r.stock_minimo)), '[]')
+                         FROM recursos r WHERE r.activo AND ` + bajoMinimoSQL + `),
   'por_area', (SELECT coalesce(json_agg(x ORDER BY x.cantidad DESC), '[]') FROM (
       SELECT area_responsable_id AS id, area_resp AS nombre, count(*) AS cantidad,
         count(*) FILTER (WHERE estado IN ('registrado','en_atencion')) AS abiertos,

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Copy, KeyRound, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
+import { Copy, KeyRound, Pencil, Plus, RefreshCw, Search, Trash2, UserRound } from 'lucide-react'
 import { api, type Me, type Row } from '../api/client'
 import { Banner, Btn, Chip, Field, Loading, Modal, Page, Tabs, confirmar, fmtD, fmtDT, toast, useAction, useApi } from '../components/ui'
 
@@ -47,6 +47,7 @@ export function Cuentas({ me }: { me: Me }) {
   const [asignar, setAsignar] = useState<Row | null>(null)
   const [nuevoPuesto, setNuevoPuesto] = useState(false)
   const [vacante, setVacante] = useState<Row | null>(null)
+  const [editar, setEditar] = useState<Row | null>(null)
   const [perfil, setPerfil] = useState<PerfilData | null>(null)
   const perfilDe = (p: Row): PerfilData => ({
     id: p.usuario_id, nombres: p.persona, dni: p.dni, correo: p.correo, celular: p.celular, area: p.area,
@@ -133,6 +134,11 @@ export function Cuentas({ me }: { me: Me }) {
                         <Btn className="btn btn-sm btn-danger" onClick={() => confirmar(`¿Retirar a ${p.persona} del puesto "${p.nombre}"? Ya no podrá ingresar y el puesto quedará vacante.`)
                           ? act(`/admin/puestos/${p.id}/liberar`, {}, 'Puesto liberado.') : undefined}>Liberar</Btn>
                       )}
+                      {!esAdmin && <button className="btn btn-sm" title="Corregir nombre o área" onClick={() => setEditar(p)}><Pencil size={12} /> Editar</button>}
+                      {!esAdmin && !p.persona && (
+                        <Btn className="btn btn-sm btn-danger" title="Eliminar puesto" onClick={() => confirmar(`¿Eliminar el puesto "${p.nombre}"? Dejará de aparecer. Lo que se hizo desde él queda en el historial.`)
+                          ? act(`/admin/puestos/${p.id}`, undefined, 'Puesto eliminado.', 'DELETE') : undefined}><Trash2 size={12} /> Eliminar</Btn>
+                      )}
                       <button className="btn btn-sm" onClick={() => setHist(p)}>Historial{p.anteriores > 0 && ` (${p.anteriores})`}</button>
                     </div>}
                   </td>
@@ -149,6 +155,7 @@ export function Cuentas({ me }: { me: Me }) {
         onCrearCuenta={() => { setCrear({ puesto_id: vacante.id, rol: vacante.rol }); setVacante(null) }} />}
       {nuevoPuesto && <NuevoPuesto sinPuesto={sinPuesto} areas={areas.data ?? []} onClose={() => setNuevoPuesto(false)} />}
       {asignar && <AsignarPuesto u={asignar} puestos={puestos} areas={areas.data ?? []} onClose={() => setAsignar(null)} />}
+      {editar && <EditarPuesto p={editar} areas={areas.data ?? []} onClose={() => setEditar(null)} />}
       {perfil && <Perfil u={perfil} onClose={() => setPerfil(null)} />}
       {hist && <Historial p={hist} onClose={() => setHist(null)} />}
       {cred && <Credenciales c={cred} onClose={() => setCred(null)} />}
@@ -282,6 +289,27 @@ function NuevoPuesto({ sinPuesto, areas, onClose }: { sinPuesto: Row[]; areas: R
       <p className="muted">{persona
         ? `${persona.nombres} ingresará con su DNI y la contraseña que eligió al registrarse.`
         : sinPuesto.length ? 'Puedes elegir a una persona sin puesto o dejarlo vacante y asignarlo después.' : 'Quedará vacante. Luego podrás asignarle una persona.'}</p>
+    </Modal>
+  )
+}
+
+function EditarPuesto({ p, areas, onClose }: { p: Row; areas: Row[]; onClose: () => void }) {
+  const act = useAction()
+  const [f, setF] = useState({ nombre: p.nombre as string, area_id: p.area_id as number })
+  const save = async () => {
+    if (!f.nombre.trim() || !f.area_id) return toast('Indica el nombre del puesto y su área.', true)
+    if (await act(`/admin/puestos/${p.id}`, f, 'Puesto actualizado.', 'PATCH')) onClose()
+  }
+  return (
+    <Modal title="Editar puesto" onClose={onClose}
+      footer={<><button className="btn" onClick={onClose}>Cancelar</button><Btn className="btn btn-primary" onClick={save}>Guardar</Btn></>}>
+      <Field label="Nombre del puesto"><input className="inp" autoFocus value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></Field>
+      <Field label="Área">
+        <select className="inp" value={f.area_id} onChange={(e) => setF({ ...f, area_id: +e.target.value })}>
+          {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </select>
+      </Field>
+      <p className="muted">Rol: {ROL_LABEL[p.rol]}. El rol no se cambia; si necesitas otro, crea un puesto nuevo.{p.persona ? ` ${p.persona} sigue en el puesto.` : ''}</p>
     </Modal>
   )
 }

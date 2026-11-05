@@ -35,13 +35,17 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
    - *Eliminar* las quita de la lista y les quita el acceso (pide confirmación). Lo que hicieron antes queda en el historial. Si vuelven a registrarse con su DNI, llegan como registro nuevo.
 4. **Cambiar personal:** crea la cuenta de la persona nueva en ese puesto. La anterior sale del puesto y queda sin acceso; el historial se conserva.
 5. **Liberar:** retira a la persona y deja el puesto vacante (pide confirmación).
-6. **Perfil:** se abre tocando el nombre de la persona o el botón *Perfil*, tanto en los puestos como en *Personas sin puesto*. Muestra:
+6. **Editar:** corrige el nombre o el área de un puesto. El rol no se cambia; si necesitas otro, crea un puesto nuevo.
+7. **Eliminar:** solo en puestos vacantes (pide confirmación). Lo que se hizo desde el puesto queda en el historial.
+8. **Perfil:** se abre tocando el nombre de la persona o el botón *Perfil*, tanto en los puestos como en *Personas sin puesto*. Muestra:
    - Sus datos: DNI, puesto, correo, celular y área.
    - La **contraseña asignada**, es decir, la que entregó el administrador al crear la cuenta o al cambiarla, mientras la persona no la cambie. Las contraseñas que eligen las personas no se pueden ver.
    - **Cambiar contraseña**, para entregarle una nueva; desde ese momento se ve en el perfil.
 
    Ver o cambiar una contraseña queda registrado en el historial del puesto.
-7. **Historial:** muestra quiénes ocuparon el puesto y qué acciones se hicieron desde él.
+9. **Historial:** muestra quiénes ocuparon el puesto y qué acciones se hicieron desde él.
+
+Cuando alguien se registra con su DNI, solo el administrador recibe el aviso.
 
 Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo vacantes* para ubicarte rápido. Las cuentas de administrador se definen únicamente en el archivo `.env` del servidor.
 
@@ -53,7 +57,7 @@ Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo va
    - **Talla única:** casco, tafilete, tapones auditivos, mascarilla, protector solar y barbiquejo. No se pide talla.
 2. **Mis solicitudes:** cada solicitud muestra su avance (*Enviada → Aprobada → Entregada*). Si queda *En espera*, ves la fecha estimada; si es *Rechazada*, el motivo.
 3. **Aprobada:** acércate a SST con el EPP anterior para recibir el nuevo y firmar el formato.
-4. **Biblioteca:** una galería con las imágenes de los afiches, flyers, procedimientos e instructivos, con filtros por tipo. Al tocar una, ves su descripción y puedes **ampliar** la imagen.
+4. **Biblioteca:** una galería con las imágenes de los afiches, flyers, procedimientos e instructivos, con filtros por tipo. Cada imagen se ve completa, sea vertical u horizontal. Al tocar una, ves su descripción y puedes **ampliar** la imagen.
 5. **Notificaciones:** te avisan de cada cambio en tus solicitudes de EPP. Al tocar una, vas directo a la solicitud.
 
 ## SST
@@ -69,18 +73,20 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 ### Inventario
 - Pestañas por categoría y un aviso con los recursos en el mínimo o por debajo.
 - **Ingreso**, **Salida** y **Mínimo** por recurso, y **Nuevo recurso** para darlos de alta.
-- **Stock por talla o tipo:** los EPP con tallas (letras o calzado) y los extintores por tipo (PQS, CO2, Agua presurizada) llevan el stock de cada talla o tipo. Al crearlos se indica el stock inicial de cada uno (deja en 0 los que no tengas), y en *Ingreso* o *Salida* se elige la talla o el tipo. Debajo del nombre se ve el stock de cada una. El mínimo se compara con el total.
+- **Stock por talla o tipo:** los EPP con tallas (letras o calzado) y los extintores por tipo (PQS, CO2, Agua presurizada) llevan el stock **y el mínimo** de cada talla o tipo. Debajo del nombre se ve el stock de cada una; en rojo, las que llegaron a su mínimo.
+  - **Nuevo recurso:** indica el stock inicial y el mínimo de cada talla (deja en 0 las que no tengas). En los extintores, marca los tipos que tienes.
+  - **Ingreso y Salida:** toca **varias tallas o tipos** y escribe la cantidad de cada una; *Registrar* las guarda todas juntas.
+  - **Mínimo:** se define por talla o tipo. Con mínimo 0 no se avisa.
 - Aprobar o entregar una solicitud requiere stock **de la talla pedida**.
 - Si ingresa stock de un recurso con solicitudes en espera, llega un aviso para atenderlas.
 
 ### Hallazgos
 1. **Registrar hallazgo:** descripción, detalle, tipo, ubicación, **área responsable**, nivel de riesgo (la prioridad se propone sola), **fecha del hallazgo** y una **foto obligatoria**.
-   - **Tipos:** condición insegura, acto inseguro, incidente / cuasiaccidente, incumplimiento documental, oportunidad de mejora y hallazgo positivo.
+   - **Tipos:** condición insegura, acto inseguro, incidente / cuasiaccidente, incumplimiento documental, oportunidad de mejora, hallazgo positivo y observación.
    - **Ubicaciones:** Sede Guardia Civil, Sede Guardia Peruana 1465, Sede Guardia Peruana 1479 y Laboratorio.
    - **Áreas:** SST, Administración, Comercial, Mantenimiento, Almacén, Transporte, Vigilancia y Calidad.
 2. Según el área responsable:
-   - **Mantenimiento o Administración:** se resuelve con **tareas**. *Crear tarea* pide el título, las indicaciones, el responsable, la fecha límite y los pasos. El hallazgo pasa a *En atención*.
-   - **Mantenimiento, Administración o Calidad:** se resuelve con tareas (ver arriba).
+   - **Mantenimiento, Administración o Calidad:** se resuelve con **tareas**. *Crear tarea* pide el título, las indicaciones, el responsable, la fecha límite y los pasos. El hallazgo pasa a *En atención*.
    - **SST, Comercial, Almacén, Transporte o Vigilancia:** estas áreas no reciben tareas en la plataforma, así que SST cierra el hallazgo directamente.
 3. **Cerrar hallazgo:** aparece cuando todas sus tareas están cerradas.
 4. **Descartar:** pide un motivo y solo es posible sin tareas activas.
@@ -95,8 +101,8 @@ Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto
 ### Tareas internas, Biblioteca y Puestos
 - **Tareas internas:** tablero *Pendientes / En curso / Completadas* para el trabajo propio de SST.
 - **Biblioteca:** *Publicar* un contenido con su imagen; los trabajadores la ven en la galería. También puedes editarlo o eliminarlo.
-- **Inventario de EPP:** al crear un EPP nuevo, elige qué tallas puede pedir el trabajador (talla única, por letras o de calzado) y el stock de cada talla.
-- **Puestos y usuarios:** SST también puede asignar los registros pendientes a un puesto.
+- **Inventario de EPP:** al crear un EPP nuevo, elige qué tallas puede pedir el trabajador (talla única, por letras o de calzado) y el stock y el mínimo de cada talla.
+- **Puestos y usuarios:** SST consulta los puestos y su historial. Los registros nuevos los asigna el administrador.
 
 ## Mantenimiento, Administración y Calidad
 
