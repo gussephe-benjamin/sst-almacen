@@ -63,7 +63,16 @@ Usa las pestañas por rol, el buscador (puesto, persona, DNI o área) y *Solo va
 ## SST
 
 ### Dashboard
-Muestra los indicadores principales: hallazgos abiertos, abiertos de riesgo alto, días promedio de atención, solicitudes nuevas, tareas por validar y recursos bajo el mínimo. Debajo están la lista de **pendientes** y los gráficos por área responsable, tipo, riesgo, ubicación y mes. Toca un indicador o un área para ir a la lista filtrada.
+Muestra los indicadores principales:
+
+- Hallazgos abiertos y abiertos de riesgo alto.
+- **% de hallazgos cerrados.**
+- **Días promedio de atención:** días desde la fecha del hallazgo hasta que se corrigió (cuando se cerró su última tarea o, si no tiene tareas, cuando se cerró el hallazgo).
+- Total de solicitudes de cambio de EPP, con cuántas faltan revisar y cuántas se entregaron.
+- Tareas por validar, del total de tareas.
+- Stock bajo mínimo.
+
+En **pendientes** aparece cada recurso o talla que llegó a su mínimo, por ejemplo «Botas de seguridad talla 43: 0 unidades (mínimo 2)». Solo aparecen los que tienen un mínimo mayor que 0 en el inventario. Debajo de la lista de **pendientes** están y los gráficos por área responsable, tipo, riesgo, ubicación y mes. Toca un indicador o un área para ir a la lista filtrada.
 
 ### Solicitudes de EPP
 - Pestañas por estado: *Nuevas, Aprobadas, En espera, Entregadas, Rechazadas, Todas*.

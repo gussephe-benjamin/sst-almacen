@@ -184,7 +184,7 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 				return err
 			}
 			// Aviso de stock bajo: sin talla, contra el mínimo del recurso; con talla, contra el de esa talla (si tiene).
-			if disponible-1 <= minimo && (talla == nil || minimo > 0) {
+			if disponible-1 <= minimo && minimo > 0 {
 				nombre := recurso
 				if talla != nil {
 					nombre += " " + *talla

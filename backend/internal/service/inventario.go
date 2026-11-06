@@ -10,8 +10,8 @@ import (
 )
 
 // bajoMinimoSQL indica si un recurso (alias r) necesita reponerse: sin variantes se compara el
-// total con su mínimo; con variantes, basta una talla o tipo en su mínimo o por debajo (mínimo > 0).
-const bajoMinimoSQL = `CASE WHEN r.tallas IS NULL THEN r.stock <= r.stock_minimo
+// total con su mínimo; con variantes, basta una talla o tipo en su mínimo o por debajo. Un mínimo 0 no avisa.
+const bajoMinimoSQL = `CASE WHEN r.tallas IS NULL THEN r.stock_minimo > 0 AND r.stock <= r.stock_minimo
 	ELSE EXISTS (SELECT 1 FROM recurso_variantes v WHERE v.recurso_id = r.id AND v.stock_minimo > 0 AND v.stock <= v.stock_minimo) END`
 
 func (s *Svc) Recursos(ctx context.Context, categoria string) (json.RawMessage, error) {
@@ -177,7 +177,7 @@ func (s *Svc) Movimiento(ctx context.Context, a *Actor, id int, in MovIn) error 
 				if stock+delta < 0 {
 					return Conflict("stock_insuficiente", "No hay stock suficiente para esa salida.")
 				}
-				if in.Tipo == "salida" && stock+delta <= minimo {
+				if in.Tipo == "salida" && minimo > 0 && stock+delta <= minimo {
 					avisos = append(avisos, fmt.Sprintf("Stock bajo: %s (%d en stock, mínimo %d).", nombre, stock+delta, minimo))
 				}
 				detalle = append(detalle, fmt.Sprint(it.Cantidad))

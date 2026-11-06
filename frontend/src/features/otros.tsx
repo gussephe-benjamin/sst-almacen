@@ -21,14 +21,22 @@ function Bars({ rows, onClick }: { rows: Row[]; onClick?: (r: Row) => void }) {
   )
 }
 
+// Texto de un recurso en o bajo su mínimo: "Botas de seguridad talla 43: 0 unidades (mínimo 2)".
+function stockBajo(r: Row) {
+  const nombre = !r.variante ? r.nombre : r.tallas === 'extintor' ? `${r.nombre} ${r.variante}` : `${r.nombre} talla ${r.variante}`
+  const queda = r.stock === 0 ? '0 unidades' : r.stock === 1 ? 'queda 1 unidad' : `quedan ${r.stock} unidades`
+  return `${nombre}: ${queda} (mínimo ${r.minimo})`
+}
+
 export function Dashboard() {
   const q = useApi<Row>('/dashboard')
   const nav = useNavigate()
   const d = q.data
-  const kpi = (l: string, v: unknown, to?: string) => (
+  const kpi = (l: string, v: unknown, detalle?: string, to?: string) => (
     <div className={`card ${to ? 'cursor-pointer hover:border-blue-300' : ''}`} onClick={() => to && nav(to)}>
       <div className="text-xs text-slate-500">{l}</div>
-      <div className="text-2xl font-bold">{(v as string) ?? '—'}</div>
+      <div className="text-2xl font-bold">{v == null ? '—' : (v as string)}</div>
+      {detalle && <div className="mt-1 text-xs text-slate-500">{detalle}</div>}
     </div>
   )
   const maxMes = Math.max(1, ...(d?.por_mes ?? []).map((m: Row) => m.alto + m.medio + m.bajo))
@@ -36,13 +44,14 @@ export function Dashboard() {
     <Page title="Dashboard" sub="Resumen de la gestión de SST del almacén.">
       <Loading q={q} />
       {d && <>
-        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-6">
-          {kpi('Hallazgos abiertos', d.abiertos, '/hallazgos')}
-          {kpi('Abiertos de riesgo alto', d.abiertos_alto, '/hallazgos?riesgo=alto')}
-          {kpi('Días promedio de atención', d.dias_promedio)}
-          {kpi('Solicitudes de EPP nuevas', d.epp_nuevas, '/epp')}
-          {kpi('Tareas por validar', d.tareas_por_validar, '/tareas')}
-          {kpi('Recursos bajo mínimo', d.bajo_minimo.length, '/inventario')}
+        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+          {kpi('Hallazgos abiertos', d.abiertos, `de ${plural(d.total, 'hallazgo', 'hallazgos')}`, '/hallazgos')}
+          {kpi('Abiertos de riesgo alto', d.abiertos_alto, undefined, '/hallazgos?riesgo=alto')}
+          {kpi('Hallazgos cerrados', d.porcentaje_cerrados == null ? null : `${d.porcentaje_cerrados}%`, `${d.cerrados} de ${d.total}`, '/hallazgos')}
+          {kpi('Días promedio de atención', d.dias_promedio, d.dias_promedio == null ? 'Aún no hay hallazgos corregidos' : 'Desde la fecha del hallazgo hasta su corrección')}
+          {kpi('Solicitudes de cambio de EPP', d.epp_total, `${d.epp_nuevas} por revisar · ${d.epp_entregadas} entregadas`, '/epp')}
+          {kpi('Tareas por validar', d.tareas_por_validar, `de ${plural(d.tareas_total, 'tarea', 'tareas')} · ${d.tareas_cerradas} cerradas`, '/tareas')}
+          {kpi('Stock bajo mínimo', d.bajo_minimo.length, d.bajo_minimo.length ? 'Tallas o recursos por reponer' : 'Todo sobre el mínimo', '/inventario')}
         </div>
         <div className="mb-4 card">
           <h2 className="mb-2 font-semibold">Pendientes</h2>
@@ -50,7 +59,12 @@ export function Dashboard() {
             {d.epp_nuevas > 0 && <li><Link className="text-blue-700" to="/epp">{plural(d.epp_nuevas, 'solicitud', 'solicitudes')} de EPP por revisar</Link></li>}
             {d.tareas_por_validar > 0 && <li><Link className="text-blue-700" to="/tareas">{plural(d.tareas_por_validar, 'tarea', 'tareas')} por validar</Link></li>}
             {d.modificaciones > 0 && <li><Link className="text-blue-700" to="/tareas">{plural(d.modificaciones, 'solicitud', 'solicitudes')} de modificación</Link></li>}
-            {d.bajo_minimo.length > 0 && <li><Link className="text-blue-700" to="/inventario">{plural(d.bajo_minimo.length, 'recurso', 'recursos')} en o bajo el mínimo: {d.bajo_minimo.slice(0, 3).map((r: Row) => r.nombre).join(', ')}</Link></li>}
+            {d.bajo_minimo.length > 0 && <li>
+              <Link className="text-blue-700" to="/inventario">Nivel de stock bajo:</Link>
+              <ul className="ml-5 mt-1 list-disc space-y-0.5 text-red-700">
+                {d.bajo_minimo.map((r: Row) => <li key={`${r.id}-${r.variante ?? ''}`}>{stockBajo(r)}</li>)}
+              </ul>
+            </li>}
           </ul>
           {!d.epp_nuevas && !d.tareas_por_validar && !d.modificaciones && !d.bajo_minimo.length && <p className="muted">No hay pendientes. Todo al día.</p>}
         </div>
