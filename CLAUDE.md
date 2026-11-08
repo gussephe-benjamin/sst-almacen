@@ -22,7 +22,7 @@ La referencia visual y funcional es el prototipo navegable en `docs/mvp-referenc
 
 | `sst` | Área de SST | Dashboard, hallazgos, tareas a áreas, solicitudes de EPP, inventario, tareas internas, biblioteca, puestos |
 
-| `mantenimiento` | Área de apoyo | Recibe tareas, acepta o pide modificación, sube evidencia por paso |
+| `mantenimiento` | Área de apoyo | Recibe tareas, acepta o pide modificación, sube evidencia por paso. Solicita cambio de su EPP como un trabajador |
 
 | `administracion` | Área de apoyo | Igual que mantenimiento |
 
@@ -260,6 +260,7 @@ make test         # go test ./... y npm test
   - % de hallazgos cerrados (sin contar descartados).
   - Totales de solicitudes de EPP y tareas, junto a sus pendientes.
   - `bajo_minimo` trae una fila por talla o recurso en su mínimo.
+- **Solicitudes de EPP de las áreas:** Mantenimiento, Administración y Calidad también piden el cambio de su EPP (`solicitantesEPP` en el router). SST y el admin no. El aviso de la respuesta va al rol del puesto que la pidió.
 - **Calidad:** el área volvió (0008). Calidad resuelve con tareas, igual que Mantenimiento y Administración.
 - **Fotos:** el `PhotoField` acepta pegar (Ctrl+V) y arrastrar, y comprime en el navegador a JPEG de 1920 px como máximo.
 - **Notificaciones del trabajador:** solo de sus EPP. La biblioteca ya no avisa.

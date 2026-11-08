@@ -18,17 +18,19 @@ export function Layout({ me }: { me: Me }) {
   const cuentas = useApi<Row>(me.rol === 'admin' ? '/admin/cuentas' : null)
   const d = dash.data
 
+  // Trabajadores y áreas de apoyo piden el cambio de su EPP; SST y el admin no.
+  const pedirEpp: Item[] = [['/solicitar', 'Solicitar EPP', HardHat], ['/mis-solicitudes', 'Mis solicitudes', ClipboardList]]
   const menus: Record<Me['rol'], Item[]> = {
-    trabajador: [['/solicitar', 'Solicitar EPP', HardHat], ['/mis-solicitudes', 'Mis solicitudes', ClipboardList], ['/biblioteca', 'Biblioteca', BookOpen]],
+    trabajador: [...pedirEpp, ['/biblioteca', 'Biblioteca', BookOpen]],
     sst: [
       ['/dashboard', 'Dashboard', LayoutDashboard], ['/hallazgos', 'Hallazgos', Search, d?.abiertos],
       ['/tareas', 'Tareas a áreas', ListChecks, (d?.tareas_por_validar ?? 0) + (d?.modificaciones ?? 0)],
       ['/epp', 'Solicitudes de EPP', HardHat, d?.epp_nuevas], ['/inventario', 'Inventario', Box, d?.bajo_minimo?.length],
       ['/internas', 'Tareas internas', ClipboardList], ['/biblioteca', 'Biblioteca', BookOpen], ['/puestos', 'Puestos y usuarios', Users],
     ],
-    mantenimiento: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
-    administracion: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
-    calidad: [['/tareas', 'Mis tareas', ListChecks], ['/biblioteca', 'Biblioteca', BookOpen]],
+    mantenimiento: [['/tareas', 'Mis tareas', ListChecks], ...pedirEpp, ['/biblioteca', 'Biblioteca', BookOpen]],
+    administracion: [['/tareas', 'Mis tareas', ListChecks], ...pedirEpp, ['/biblioteca', 'Biblioteca', BookOpen]],
+    calidad: [['/tareas', 'Mis tareas', ListChecks], ...pedirEpp, ['/biblioteca', 'Biblioteca', BookOpen]],
     admin: [['/cuentas', 'Cuentas y puestos', UserCog, (cuentas.data?.sin_puesto ?? []).filter((u: Row) => u.estado === 'pendiente').length]],
   }
   const items: Item[] = [...menus[me.rol], ['/notificaciones', 'Notificaciones', Bell, unread]]

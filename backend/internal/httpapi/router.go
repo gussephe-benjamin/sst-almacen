@@ -27,6 +27,9 @@ type API struct {
 
 const maxUpload = 5 << 20
 
+// solicitantesEPP son los roles que piden el cambio de su propio EPP (todos menos SST y el admin).
+var solicitantesEPP = []string{"trabajador", "mantenimiento", "administracion", "calidad"}
+
 func (a *API) Router() http.Handler {
 	a.limiter = newLoginLimiter()
 	r := chi.NewRouter()
@@ -81,12 +84,12 @@ func (a *API) Router() http.Handler {
 				reply(w, v, err)
 			})
 
-			// EPP
-			r.With(RequireRole("trabajador")).Get("/epp/mias", func(w http.ResponseWriter, r *http.Request) {
+			// EPP: trabajadores y áreas de apoyo piden el cambio de su propio EPP; SST las atiende.
+			r.With(RequireRole(solicitantesEPP...)).Get("/epp/mias", func(w http.ResponseWriter, r *http.Request) {
 				v, err := a.S.EppMias(r.Context(), actor(r))
 				reply(w, v, err)
 			})
-			r.With(RequireRole("trabajador")).Post("/epp", func(w http.ResponseWriter, r *http.Request) {
+			r.With(RequireRole(solicitantesEPP...)).Post("/epp", func(w http.ResponseWriter, r *http.Request) {
 				var in service.EppIn
 				if err := decode(r, &in); err != nil {
 					writeErr(w, err)
@@ -95,7 +98,7 @@ func (a *API) Router() http.Handler {
 				id, err := a.S.EppCrear(r.Context(), actor(r), in)
 				reply(w, map[string]int{"id": id}, err)
 			})
-			r.With(RequireRole("trabajador", "sst")).Get("/epp/{id}", func(w http.ResponseWriter, r *http.Request) {
+			r.With(RequireRole("trabajador", "mantenimiento", "administracion", "calidad", "sst")).Get("/epp/{id}", func(w http.ResponseWriter, r *http.Request) {
 				v, err := a.S.EppDetalle(r.Context(), actor(r), idParam(r, "id"))
 				reply(w, v, err)
 			})

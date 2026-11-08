@@ -116,12 +116,13 @@ type EppAccionIn struct {
 func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in EppAccionIn) error {
 	to := map[string]string{"aprobar": "aprobada", "espera": "en_espera", "rechazar": "rechazada", "entregar": "entregada"}[accion]
 	return s.Tx(ctx, func(tx pgx.Tx) error {
-		var estado, recurso string
+		var estado, recurso, rolSolicitante string
 		var talla *string
 		var puestoID, recursoID, stock, minimo int
-		err := tx.QueryRow(ctx, `SELECT e.estado::text, e.puesto_id, e.talla, r.id, r.nombre, r.stock, r.stock_minimo
-			FROM solicitudes_epp e JOIN recursos r ON r.id = e.recurso_id WHERE e.id = $1 FOR UPDATE OF e, r`, id).
-			Scan(&estado, &puestoID, &talla, &recursoID, &recurso, &stock, &minimo)
+		err := tx.QueryRow(ctx, `SELECT e.estado::text, e.puesto_id, p.rol::text, e.talla, r.id, r.nombre, r.stock, r.stock_minimo
+			FROM solicitudes_epp e JOIN recursos r ON r.id = e.recurso_id JOIN puestos p ON p.id = e.puesto_id
+			WHERE e.id = $1 FOR UPDATE OF e, r`, id).
+			Scan(&estado, &puestoID, &rolSolicitante, &talla, &recursoID, &recurso, &stock, &minimo)
 		if err != nil {
 			return notFound(err)
 		}
@@ -201,7 +202,8 @@ func (s *Svc) EppAccion(ctx context.Context, a *Actor, id int, accion string, in
 		if err := Hist(ctx, tx, a, "solicitud_epp", id, hist); err != nil {
 			return err
 		}
-		return Notify(ctx, tx, "trabajador", puestoID, aviso, "epp", id)
+		// El aviso va al puesto que pidió el EPP: un trabajador o un área de apoyo.
+		return Notify(ctx, tx, rolSolicitante, puestoID, aviso, "epp", id)
 	})
 }
 

@@ -56,11 +56,11 @@ export default function App() {
     <Routes>
       <Route element={<Layout me={m} />}>
         {m.rol === 'admin' && <Route path="/cuentas" element={<Cuentas me={m} />} />}
-        {m.rol === 'trabajador' && <>
+        {(m.rol === 'trabajador' || area) && <>
           <Route path="/solicitar" element={<SolicitarEpp />} />
           <Route path="/mis-solicitudes" element={<MisSolicitudes />} />
         </>}
-        {(m.rol === 'trabajador' || sst) && <Route path="/epp/:id" element={<EppDetalle me={m} />} />}
+        {(m.rol === 'trabajador' || area || sst) && <Route path="/epp/:id" element={<EppDetalle me={m} />} />}
         {sst && <>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/hallazgos" element={<Hallazgos />} />

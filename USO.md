@@ -6,7 +6,7 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
 
 - **La cuenta es del puesto, no de la persona.** Si cambia el operario de un puesto, la persona nueva entra con su propio DNI a la misma cuenta y ve todo el historial del puesto: solicitudes, tareas y avisos. La persona anterior ya no puede entrar.
 - **Todo deja rastro.** Cada cambio de estado guarda la fecha, la persona y el puesto en el *Historial*, visible en el detalle de cada registro.
-- **Cada quien ve solo lo suyo.** Un trabajador solo ve sus solicitudes. Mantenimiento y Administración solo ven las tareas de su puesto. El inventario y los hallazgos son de SST.
+- **Cada quien ve solo lo suyo.** Un trabajador o un área solo ve sus propias solicitudes de EPP. Mantenimiento y Administración solo ven las tareas de su puesto. El inventario y los hallazgos son de SST.
 - **Funciona en el celular.** La vista del trabajador está pensada primero para el celular. Las de SST y las áreas, para laptop, pero también se usan desde el teléfono. Al adjuntar una foto desde el celular se abre la cámara.
 
 ## Roles
@@ -15,7 +15,7 @@ SST Almacén reemplaza el papel, WhatsApp y Excel por un solo lugar donde queda 
 |---|---|
 | **Administrador** | Crea y gestiona las cuentas y los puestos de todo el personal. |
 | **SST** | Dashboard, hallazgos, tareas a las áreas, solicitudes de EPP, inventario, tareas internas, biblioteca. |
-| **Mantenimiento / Administración / Calidad** | Reciben tareas, las aceptan o piden cambios, y suben una foto y un comentario por cada paso. |
+| **Mantenimiento / Administración / Calidad** | Reciben tareas, las aceptan o piden cambios, y suben una foto y un comentario por cada paso. También piden el cambio de su EPP. |
 | **Trabajador** | Pide cambio de EPP con foto, sigue sus solicitudes y consulta la biblioteca. |
 
 ## Ingreso
@@ -122,6 +122,7 @@ En **pendientes** aparece cada recurso o talla que llegó a su mínimo, por ejem
 3. **Completar** cada paso con **foto y comentario**. Un paso completado por error se puede **Reabrir**.
 4. **Terminar y enviar a SST** cuando todos los pasos tengan evidencia.
 5. Si SST la **devuelve**, verás su comentario y los pasos marcados *Rehacer*. Corrígelos y vuelve a enviarla.
+6. **Solicitar EPP** y **Mis solicitudes:** igual que un trabajador, cada área pide el cambio de su propio EPP con foto y sigue su estado. SST lo atiende en *Solicitudes de EPP*.
 
 ## Recorrido típico
 
