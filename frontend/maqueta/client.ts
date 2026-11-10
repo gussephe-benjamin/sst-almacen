@@ -82,7 +82,7 @@ export async function api<T = Row>(path: string, opts: { method?: string; body?:
   const f = filtrar(path, datos)
   if (f !== undefined) return f as T
   if (path.includes('?') || /^\/[a-z-]+$/.test(path)) return [] as T
-  throw new ApiError(404, 'no_encontrado', 'Esta pantalla no tiene datos en la maqueta.')
+  throw new ApiError(404, 'no_encontrado', 'No hay datos para mostrar.')
 }
 
 const locales: Record<string, string> = {}

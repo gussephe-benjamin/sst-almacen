@@ -2,7 +2,7 @@
 
 `docs/maqueta-producto.html` es la plataforma real (los mismos componentes de `src/`) en un solo archivo que se abre con doble clic, sin servidor ni base de datos.
 
-- La barra flotante **Ver como** cambia de rol: Trabajador, SST, Mantenimiento, Administración, Calidad o Administrador. También se puede ingresar desde el login con el DNI de una cuenta de demostración (cualquier contraseña).
+- El botón flotante **Cambiar rol** cambia de rol: Trabajador, SST, Mantenimiento, Administración, Calidad o Administrador. También se puede ingresar desde el login con el DNI de una cuenta de demostración (cualquier contraseña).
 - Los datos son de demostración (`fixtures.json`). Los botones responden, pero los cambios no se guardan y no se descargan reportes.
 - Para la vista de celular, achica la ventana o usa el modo dispositivo del navegador (F12).
 
