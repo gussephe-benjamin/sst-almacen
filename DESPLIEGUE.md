@@ -106,6 +106,34 @@ Con personas reales, haz respaldos al menos una vez por semana.
     ```
 - **Fotos:** el volumen también tiene la opción **Backups** en Railway.
 
+## Borrar todos los datos
+
+Sirve para empezar de cero, por ejemplo al terminar la prueba. **No se puede deshacer:** haz antes un respaldo (sección anterior).
+
+Se borran las personas registradas, los puestos, los hallazgos, las tareas, las solicitudes de EPP, el stock y los movimientos, la biblioteca, las notificaciones, el historial y las fotos del volumen. Se vuelven a cargar los catálogos (áreas, sedes, tipos de hallazgo y EPP con stock 0) y las cuentas definidas en las variables `ACCOUNTS_*` de Railway.
+
+1. Instala la CLI de Railway e ingresa con tu cuenta:
+   ```bash
+   npm install -g @railway/cli
+   ```
+   ```bash
+   railway login
+   ```
+2. En la carpeta del proyecto, vincúlala con el proyecto y el servicio **sst-almacen**:
+   ```bash
+   railway link
+   ```
+3. Abre una terminal dentro del contenedor de la aplicación:
+   ```bash
+   railway ssh
+   ```
+4. Dentro del contenedor, borra todo:
+   ```bash
+   /app/bin/api reset --si
+   ```
+   Debe responder `base reiniciada: solo catálogos`. Escribe `exit` para salir.
+5. Todas las sesiones se cierran. Ingresa con la cuenta de `ACCOUNTS_ADMIN`; el resto del personal debe registrarse otra vez.
+
 ## Si algo falla
 
 | Síntoma en los logs | Causa |
